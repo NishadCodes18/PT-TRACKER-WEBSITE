@@ -14,7 +14,7 @@ A web application for personal trainers to manage clients, track payments, and m
 ## Project Structure
 
 ```
-gym-tracker/
+PT-TRACKER-WEBSITE/
 ├── backend/
 │   ├── __init__.py          # Flask app factory
 │   ├── config.py            # Configuration settings
@@ -49,7 +49,7 @@ gym-tracker/
 
 1. **Clone or navigate to the project directory:**
    ```bash
-   cd gym-tracker
+   cd PT-TRACKER-WEBSITE
    ```
 
 2. **Create a virtual environment (recommended):**
