@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ subject }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .email-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            border-top: 4px solid #667eea;
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 30px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .email-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+        
+        .email-header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo {
+            max-width: 100px;
+            height: auto;
+            margin-bottom: 15px;
+            display: inline-block;
+        }
+        
+        .gym-name {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 10px 0 5px;
+            letter-spacing: -0.5px;
+        }
+        
+        .header-subtitle {
+            font-size: 14px;
+            opacity: 0.95;
+            font-weight: 500;
+        }
+        
+        .email-body {
+            padding: 45px 40px;
+        }
+        
+        .greeting {
+            font-size: 16px;
+            color: #1a1a1a;
+            margin-bottom: 25px;
+            font-weight: 600;
+        }
+        
+        .content {
+            color: #4a4a4a;
+            line-height: 1.8;
+            font-size: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .content p {
+            margin-bottom: 15px;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+            border-left: 4px solid #667eea;
+            padding: 22px;
+            margin: 30px 0;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .highlight-box strong {
+            color: #667eea;
+            font-size: 16px;
+            display: block;
+            margin-bottom: 12px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+            padding: 14px 40px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 15px;
+            margin: 25px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+            font-size: 14px;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .info-value {
+            color: #1a1a1a;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        .email-footer {
+            background: #f8f9fa;
+            padding: 30px 40px;
+            text-align: center;
+            border-top: 1px solid #e8ecf1;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 12px;
+            transition: color 0.2s;
+        }
+        
+        .footer-links a:hover {
+            color: #764ba2;
+        }
+        
+        .footer-divider {
+            width: 30px;
+            height: 1px;
+            background: #e8ecf1;
+            margin: 12px auto;
+        }
+        
+        .divider {
+            border-top: 1px solid #e8ecf1;
+            margin: 30px 0;
+        }
+        
+        .text-center {
+            text-align: center;
+        }
+        
+        .text-muted {
+            color: #999;
+        }
+        
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            color: #155724;
+            font-size: 14px;
+        }
+        
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            color: #856404;
+            font-size: 14px;
+        }
+        
+        .error-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            color: #721c24;
+            font-size: 14px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                border-radius: 8px;
+            }
+            
+            .email-header {
+                padding: 35px 20px 30px;
+            }
+            
+            .gym-name {
+                font-size: 24px;
+            }
+            
+            .email-body {
+                padding: 30px 20px;
+            }
+            
+            .email-footer {
+                padding: 25px 20px;
+            }
+            
+            .info-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .info-value {
+                text-align: left;
+                margin-top: 5px;
+            }
+            
+            .cta-button {
+                width: 100%;
+                text-align: center;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <div class="email-header">
+                <div class="email-header-content">
+                    {% if logo_url %}
+                    <img src="{{ logo_url }}" alt="{{ gym_name }}" class="logo">
+                    {% endif %}
+                    <div class="gym-name">{{ gym_name }}</div>
+                    <p class="header-subtitle">Professional Fitness Management</p>
+                </div>
+            </div>
+            
+            <div class="email-body">
+                {% block email_content %}{% endblock %}
+            </div>
+            
+            <div class="email-footer">
+                <p style="margin-bottom: 12px;">&copy; {{ year }} {{ gym_name }}. All rights reserved.</p>
+                <div class="footer-divider"></div>
+                <div class="footer-links">
+                    <a href="#">Contact Us</a>
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">FAQ</a>
+                </div>
+                <p style="margin-top: 15px; color: #aaa;">
+                    {{ support_email }}<br>
+                    <span class="text-muted">Professional PT Management System</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

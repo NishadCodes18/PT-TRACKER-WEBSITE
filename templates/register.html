@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - NITRRO ZONE 360</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">⚡</div>
+                <h1>NITRRO ZONE 360</h1>
+                <div class="gym-sub">Balewadi · Trainer Portal</div>
+                <p>Create your trainer account</p>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST" action="{{ url_for('auth.register') }}" class="auth-form">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" name="username" required minlength="3" placeholder="Choose a username">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required minlength="6" placeholder="Min 6 characters">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm Password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required minlength="6" placeholder="Repeat your password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px; padding:14px;">⚡ Create Account</button>
+            </form>
+            <div class="auth-footer">
+                <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

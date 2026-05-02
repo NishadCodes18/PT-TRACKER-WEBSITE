@@ -1,0 +1,288 @@
+from datetime import datetime
+from flask import Blueprint, jsonify, request
+from flask_login import login_required, current_user
+from sqlalchemy import func, or_
+from ..database import db
+from ..models import (
+    Trainer,
+    Payment,
+    CommissionPolicy,
+    Notification,
+    ADMIN_DATA_OWNER_USERNAME,
+)
+admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
+def _admin_required():
+    return getattr(current_user, 'is_admin', False)
+
+
+def _is_hidden_trainer(trainer):
+    return trainer.username == ADMIN_DATA_OWNER_USERNAME
+
+
+def _serialize_trainer(trainer):
+    return {
+        'id': trainer.id,
+        'username': trainer.username,
+        'shift_type': trainer.shift_type,
+        'created_at': trainer.created_at.isoformat() if trainer.created_at else None,
+        'client_count': len(trainer.clients),
+        'commission_policy': _resolve_commission(trainer),
+    }
+def _month_start(date_obj):
+    return date_obj.replace(day=1)
+def _resolve_commission(trainer):
+    policy = trainer.commission_policy
+    if not policy:
+        policy = CommissionPolicy(trainer_id=trainer.id)
+        db.session.add(policy)
+        db.session.commit()
+    return {
+        'id': policy.id,
+        'trainer_id': trainer.id,
+        'monthly_target': float(policy.monthly_target),
+        'above_target_percent': float(policy.above_target_percent),
+        'below_target_percent': float(policy.below_target_percent),
+        'override_percent': float(policy.override_percent) if policy.override_percent is not None else None,
+    }
+def _trainer_payout_summary(trainer):
+    today = datetime.utcnow().date()
+    month_start = _month_start(today)
+    monthly_income_result = (
+        db.session.query(func.sum(Payment.amount))
+        .filter(Payment.trainer_id == trainer.id, Payment.payment_date >= month_start)
+        .scalar()
+    )
+    monthly_income = float(monthly_income_result) if monthly_income_result else 0.0
+    policy = trainer.commission_policy
+    if not policy:
+        policy = CommissionPolicy(trainer_id=trainer.id)
+        db.session.add(policy)
+        db.session.commit()
+    target = float(policy.monthly_target)
+    if policy.override_percent is not None:
+        payout_percent = float(policy.override_percent)
+        payout_rule = 'manual_override'
+    elif monthly_income >= target:
+        payout_percent = float(policy.above_target_percent)
+        payout_rule = 'target_achieved'
+    else:
+        payout_percent = float(policy.below_target_percent)
+        payout_rule = 'below_target'
+    payout_amount = round((monthly_income * payout_percent) / 100.0, 2)
+    return {
+        'trainer_id': trainer.id,
+        'trainer_username': trainer.username,
+        'monthly_income': monthly_income,
+        'monthly_target': target,
+        'payout_percent': payout_percent,
+        'payout_amount': payout_amount,
+        'payout_rule': payout_rule,
+    }
+@admin_bp.route('/panel-summary', methods=['GET'])
+@login_required
+def panel_summary():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainers = (
+        Trainer.query.filter(Trainer.username != ADMIN_DATA_OWNER_USERNAME)
+        .order_by(Trainer.username)
+        .all()
+    )
+    return jsonify({
+        'trainer_count': len(trainers),
+        'trainers': [_trainer_payout_summary(t) for t in trainers],
+    })
+@admin_bp.route('/trainers', methods=['GET'])
+@login_required
+def list_trainers():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainers = (
+        Trainer.query.filter(Trainer.username != ADMIN_DATA_OWNER_USERNAME)
+        .order_by(Trainer.username)
+        .all()
+    )
+    return jsonify([_serialize_trainer(trainer) for trainer in trainers])
+
+
+@admin_bp.route('/trainers', methods=['POST'])
+@login_required
+def create_trainer():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    data = request.get_json() or {}
+    username = (data.get('username') or '').strip()
+    password = data.get('password') or ''
+    shift_type = (data.get('shift_type') or '8-hour').strip() or '8-hour'
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+    if username == ADMIN_DATA_OWNER_USERNAME:
+        return jsonify({'error': 'Reserved trainer username'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+    if Trainer.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username already taken'}), 400
+    trainer = Trainer(username=username, shift_type=shift_type)
+    trainer.set_password(password)
+    db.session.add(trainer)
+    db.session.commit()
+    return jsonify(_serialize_trainer(trainer)), 201
+
+
+@admin_bp.route('/trainers/<int:trainer_id>', methods=['PUT'])
+@login_required
+def update_trainer(trainer_id):
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainer = Trainer.query.get_or_404(trainer_id)
+    if _is_hidden_trainer(trainer):
+        return jsonify({'error': 'Cannot modify hidden system trainer'}), 400
+    data = request.get_json() or {}
+    if 'username' in data:
+        username = (data.get('username') or '').strip()
+        if not username:
+            return jsonify({'error': 'Username is required'}), 400
+        if username == ADMIN_DATA_OWNER_USERNAME:
+            return jsonify({'error': 'Reserved trainer username'}), 400
+        existing = Trainer.query.filter(Trainer.username == username, Trainer.id != trainer.id).first()
+        if existing:
+            return jsonify({'error': 'Username already taken'}), 400
+        trainer.username = username
+    if 'password' in data and (data.get('password') or '').strip():
+        password = data.get('password') or ''
+        if len(password) < 6:
+            return jsonify({'error': 'Password must be at least 6 characters'}), 400
+        trainer.set_password(password)
+    if 'shift_type' in data:
+        trainer.shift_type = (data.get('shift_type') or '8-hour').strip() or '8-hour'
+    db.session.commit()
+    return jsonify(_serialize_trainer(trainer))
+
+
+@admin_bp.route('/trainers/<int:trainer_id>', methods=['DELETE'])
+@login_required
+def delete_trainer(trainer_id):
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainer = Trainer.query.get_or_404(trainer_id)
+    if _is_hidden_trainer(trainer):
+        return jsonify({'error': 'Cannot delete hidden system trainer'}), 400
+    db.session.delete(trainer)
+    db.session.commit()
+    return jsonify({'message': 'Trainer deleted'})
+@admin_bp.route('/trainers/<int:trainer_id>/commission-policy', methods=['PUT'])
+@login_required
+def update_commission_policy(trainer_id):
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainer = Trainer.query.get_or_404(trainer_id)
+    if trainer.username == ADMIN_DATA_OWNER_USERNAME:
+        return jsonify({'error': 'Cannot update hidden system trainer'}), 400
+    data = request.get_json() or {}
+    policy = trainer.commission_policy
+    if not policy:
+        policy = CommissionPolicy(trainer_id=trainer.id)
+    monthly_target = data.get('monthly_target', policy.monthly_target or 8000)
+    above_target_percent = data.get('above_target_percent', policy.above_target_percent or 50)
+    below_target_percent = data.get('below_target_percent', policy.below_target_percent or 40)
+    override_percent = data.get('override_percent', policy.override_percent)
+    try:
+        monthly_target = float(monthly_target)
+        above_target_percent = float(above_target_percent)
+        below_target_percent = float(below_target_percent)
+        if override_percent in ('', None):
+            override_percent = None
+        else:
+            override_percent = float(override_percent)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Invalid policy values'}), 400
+    if monthly_target < 0:
+        return jsonify({'error': 'Target must be non-negative'}), 400
+    for pct in [above_target_percent, below_target_percent]:
+        if pct < 0 or pct > 100:
+            return jsonify({'error': 'Percentages must be between 0 and 100'}), 400
+    if override_percent is not None and (override_percent < 0 or override_percent > 100):
+        return jsonify({'error': 'Override percentage must be between 0 and 100'}), 400
+    policy.monthly_target = monthly_target
+    policy.above_target_percent = above_target_percent
+    policy.below_target_percent = below_target_percent
+    policy.override_percent = override_percent
+    db.session.add(policy)
+    db.session.commit()
+    return jsonify({'message': 'Commission policy updated', 'commission_policy': _resolve_commission(trainer)})
+@admin_bp.route('/notifications', methods=['POST'])
+@login_required
+def create_notification():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    data = request.get_json() or {}
+    message = (data.get('message') or '').strip()
+    trainer_id = data.get('trainer_id')
+    if not message:
+        return jsonify({'error': 'Message is required'}), 400
+    notification = Notification(message=message, created_by=current_user.username)
+    if trainer_id:
+        trainer = Trainer.query.get(trainer_id)
+        if not trainer or trainer.username == ADMIN_DATA_OWNER_USERNAME:
+            return jsonify({'error': 'Invalid trainer'}), 400
+        notification.trainer_id = trainer.id
+    db.session.add(notification)
+    db.session.commit()
+    return jsonify({'message': 'Notification sent'}), 201
+@admin_bp.route('/payouts', methods=['GET'])
+@login_required
+def trainer_payouts():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    trainers = (
+        Trainer.query.filter(Trainer.username != ADMIN_DATA_OWNER_USERNAME)
+        .order_by(Trainer.username)
+        .all()
+    )
+    return jsonify([_trainer_payout_summary(t) for t in trainers])
+@admin_bp.route('/notifications', methods=['GET'])
+@login_required
+def get_admin_sent_notifications():
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+    notifications = Notification.query.order_by(Notification.created_at.desc()).limit(50).all()
+    return jsonify([
+        {
+            'id': n.id,
+            'trainer_id': n.trainer_id,
+            'trainer_username': n.trainer.username if n.trainer else 'All Trainers',
+            'message': n.message,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+        }
+        for n in notifications
+    ])
+@admin_bp.route('/notifications/inbox', methods=['GET'])
+@login_required
+def get_inbox_notifications():
+    notifications_query = Notification.query
+    if not _admin_required():
+        notifications_query = notifications_query.filter(
+            or_(Notification.trainer_id == current_user.id, Notification.trainer_id.is_(None))
+        )
+    notifications = notifications_query.order_by(Notification.created_at.desc()).limit(50).all()
+    return jsonify([
+        {
+            'id': n.id,
+            'trainer_id': n.trainer_id,
+            'trainer_username': n.trainer.username if n.trainer else 'Broadcast',
+            'message': n.message,
+            'is_read': n.is_read,
+            'created_at': n.created_at.isoformat(),
+        }
+        for n in notifications
+    ])
+@admin_bp.route('/notifications/<int:notification_id>/read', methods=['POST'])
+@login_required
+def mark_notification_read(notification_id):
+    notification = Notification.query.get_or_404(notification_id)
+    if not _admin_required() and notification.trainer_id not in (None, current_user.id):
+        return jsonify({'error': 'Unauthorized'}), 403
+    notification.is_read = True
+    db.session.commit()
+    return jsonify({'message': 'Notification marked as read'})

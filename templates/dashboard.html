@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - NITRRO ZONE 360</title>
+    <meta name="description" content="Trainer dashboard for NITRRO ZONE 360 Balewadi.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="nav-brand-icon">⚡</div>
+            <div class="nav-brand-text">
+                <span class="nav-brand-name">NITRRO ZONE 360</span>
+                <span class="nav-brand-loc">Balewadi</span>
+            </div>
+        </div>
+        <div class="nav-user">
+            <span class="nav-user-name">👋 {{ current_user.username }}</span>
+            {% if is_admin %}
+                <a href="{{ url_for('dashboard.admin_panel') }}" class="btn btn-sm btn-outline">🛡 Admin Panel</a>
+            {% endif %}
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-secondary">Logout</a>
+        </div>
+    </nav>
+    <main class="container">
+        <section class="stats-grid" id="stats-grid">
+            <div class="stat-card stat-income">
+                <div class="stat-icon">💰</div>
+                <div class="stat-info">
+                    <h3>Total Income</h3>
+                    <p class="stat-value" id="total-income">₹0</p>
+                </div>
+            </div>
+            <div class="stat-card stat-monthly">
+                <div class="stat-icon">📅</div>
+                <div class="stat-info">
+                    <h3>This Month</h3>
+                    <p class="stat-value" id="monthly-income">₹0</p>
+                </div>
+            </div>
+            <div class="stat-card stat-active">
+                <div class="stat-icon">👥</div>
+                <div class="stat-info">
+                    <h3>Active Clients</h3>
+                    <p class="stat-value" id="active-clients">0</p>
+                </div>
+            </div>
+            <div class="stat-card stat-lost">
+                <div class="stat-icon">📉</div>
+                <div class="stat-info">
+                    <h3>Lost Clients</h3>
+                    <p class="stat-value" id="lost-clients">0</p>
+                </div>
+            </div>
+            {% if not is_admin %}
+            <div class="stat-card stat-profit">
+                <div class="stat-icon">🎯</div>
+                <div class="stat-info">
+                    <h3>Self Earning</h3>
+                    <p class="stat-value" id="estimated-payout">₹0</p>
+                    <small id="payout-meta" class="text-muted" style="font-size:11px;">Rule pending</small>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+        {% if is_admin %}
+        <section class="card">
+            <div class="card-header">
+                <h2>🛡 Admin Control Center</h2>
+            </div>
+            <div class="card-body" style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between;">
+                <p class="text-muted" style="margin:0; max-width:640px;">Manage trainers, commission rules, payouts, and notifications from the full admin panel. Client cards also show each assigned trainer, and admins can reassign clients directly from the client form.</p>
+                <a href="{{ url_for('dashboard.admin_panel') }}" class="btn btn-primary">Open Admin Panel</a>
+            </div>
+        </section>
+        {% endif %}
+        <section class="card overdue-section" id="overdue-section" style="display:none;">
+            <div class="card-header">
+                <h2>🚨 Action Required — Call Today!</h2>
+            </div>
+            <div class="card-body">
+                <div id="overdue-list"></div>
+            </div>
+        </section>
+        <section class="card renewals-section">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>⏰ Upcoming Renewals <span style="font-size:12px; font-weight:400; color:var(--text-muted);">(next 7 days)</span></h2>
+                <div>
+                    <button class="btn btn-sm btn-outline" onclick="sendReminders('due_closest')">Send Due</button>
+                    <button class="btn btn-sm btn-outline" onclick="sendReminders('all')">Send All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="renewals-list">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </section>
+        <section class="card clients-section">
+            <div class="card-header">
+                <h2>👥 Clients</h2>
+                <button class="btn btn-primary" onclick="openModal('client-modal')">+ Add Client</button>
+            </div>
+            <div class="card-body">
+                <div class="filter-bar">
+                    <button class="btn btn-sm btn-outline active" id="filter-all" onclick="filterClients('all', this)">All</button>
+                    <button class="btn btn-sm btn-outline" id="filter-ongoing" onclick="filterClients('ongoing', this)">Active</button>
+                    <button class="btn btn-sm btn-outline" id="filter-lost" onclick="filterClients('lost', this)">Lost</button>
+                </div>
+                <div id="clients-list">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </section>
+        <section class="card payments-section">
+            <div class="card-header">
+                <h2>💳 Payments</h2>
+                <button class="btn btn-primary" onclick="openModal('payment-modal')">+ Log Payment</button>
+            </div>
+            <div class="card-body">
+                <div id="payments-list">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-header">
+                <h2>🔔 Notifications</h2>
+            </div>
+            <div class="card-body">
+                <div id="notifications-list">
+                    <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    <div id="client-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('client-modal')">&times;</span>
+            <h2 id="client-modal-title">Add Client</h2>
+            <form id="client-form" onsubmit="handleClientSubmit(event)">
+                <input type="hidden" id="client-id">
+                <div class="form-group">
+                    <label for="client-name">Full Name *</label>
+                    <input type="text" id="client-name" required placeholder="e.g., Rahul Sharma">
+                </div>
+                <div class="form-group">
+                    <label for="client-contact">Contact Number</label>
+                    <input type="tel" id="client-contact" placeholder="e.g., +91 9876543210">
+                </div>
+                <div class="form-group">
+                    <label for="client-email">Email Address</label>
+                    <input type="email" id="client-email" placeholder="e.g., rahul@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="client-status">Status</label>
+                    <select id="client-status">
+                        <option value="ongoing">Ongoing</option>
+                        <option value="lost">Lost</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="client-pt-tier">PT Tier</label>
+                    <select id="client-pt-tier" onchange="updateExpectedAmount()">
+                        <option value="Silver">Silver (INR 8,000)</option>
+                        <option value="Gold">Gold (INR 12,000)</option>
+                        <option value="Platinum">Platinum (INR 15,000)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="client-renewal-date">Renewal Date</label>
+                    <input type="date" id="client-renewal-date">
+                </div>
+                {% if is_admin %}
+                <div class="form-group">
+                    <label for="client-trainer">Assigned Trainer</label>
+                    <select id="client-trainer">
+                        <option value="">Loading trainers...</option>
+                    </select>
+                </div>
+                {% endif %}
+                <div class="form-group">
+                    <label for="client-time">Time Slot</label>
+                    <input type="time" id="client-time">
+                    <small class="text-muted" style="font-size:11px; margin-top:4px; display:block;">1-hour slot auto-assigned (e.g. 9:00 → 9–10 AM)</small>
+                </div>
+                <div class="form-group">
+                    <label for="client-notes">Notes</label>
+                    <textarea id="client-notes" rows="3" placeholder="Any special notes about this client..."></textarea>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center; gap:10px;">
+                    <input type="checkbox" id="client-email-reminders" style="width:auto; margin:0;">
+                    <label for="client-email-reminders" style="margin:0;">Enable renewal email reminders</label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('client-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="payment-modal" class="modal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal('payment-modal')">&times;</span>
+            <h2>Log Payment</h2>
+            <form id="payment-form" onsubmit="handlePaymentSubmit(event)">
+                <div class="form-group">
+                    <label for="payment-client">Client *</label>
+                    <select id="payment-client" required onchange="updatePaymentAmount()">
+                        <option value="">Select client</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-plan-type">Plan Type *</label>
+                    <select id="payment-plan-type" required onchange="handlePlanTypeChange()">
+                        <option value="monthly">Monthly (30 days)</option>
+                        <option value="session">Session Wise</option>
+                    </select>
+                </div>
+                <div class="form-group" id="payment-session-days-group" style="display:none;">
+                    <label for="payment-session-days">Session Days *</label>
+                    <select id="payment-session-days" onchange="updateTotalPayment()">
+                        <option value="MWF">Mon-Wed-Fri</option>
+                        <option value="TTS">Tue-Thu-Sat</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="payment-start-date">Start Date *</label>
+                    <input type="date" id="payment-start-date" required onchange="updateTotalPayment()">
+                </div>
+                <div class="form-group">
+                    <label for="payment-amount">Base Amount (INR) *</label>
+                    <input type="number" id="payment-amount" step="0.01" min="0" required oninput="updateTotalPayment()" placeholder="e.g. 8000">
+                </div>
+                <div class="form-group">
+                    <label id="payment-duration-label" for="payment-duration">Duration (Months) *</label>
+                    <input type="number" id="payment-duration" min="1" value="1" required oninput="updateTotalPayment()">
+                </div>
+                <div style="background: var(--bg-elevated); border: 1px solid var(--border-glow); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 16px;">
+                    <div id="payment-total-display" style="font-size:1.2em; font-weight:700;">Total: INR 0.00</div>
+                    <div id="payment-end-date-display" class="text-muted" style="margin-top:4px; font-size:0.9em;">End Date: -</div>
+                </div>
+                <div class="form-group">
+                    <label for="payment-date">Payment Date *</label>
+                    <input type="date" id="payment-date" required>
+                </div>
+                <div class="form-group">
+                    <label for="payment-description">Description</label>
+                    <input type="text" id="payment-description" placeholder="e.g., PT Session Pack - June">
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('payment-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Payment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        window.IS_ADMIN = ("{{ 'true' if is_admin else 'false' }}" === "true");
+    </script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

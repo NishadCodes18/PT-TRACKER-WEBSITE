@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ gym_name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+        
+        .email-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            border-bottom: 4px solid #FFD700;
+        }
+        
+        .logo {
+            max-width: 120px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+        
+        .gym-name {
+            font-size: 28px;
+            font-weight: bold;
+            margin: 10px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .email-body {
+            padding: 40px 30px;
+        }
+        
+        .greeting {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        
+        .content {
+            color: #555;
+            line-height: 1.8;
+            font-size: 16px;
+            margin-bottom: 25px;
+        }
+        
+        .welcome-box {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+            text-align: center;
+            color: #155724;
+        }
+        
+        .welcome-box strong {
+            font-size: 18px;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white !important;
+            padding: 12px 35px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: transform 0.2s;
+        }
+        
+        .cta-button:hover {
+            transform: scale(1.05);
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .feature-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            text-align: center;
+        }
+        
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .feature-title {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .quick-start {
+            background: #f0f7ff;
+            border-left: 4px solid #0066cc;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 5px;
+        }
+        
+        .quick-start-title {
+            font-weight: bold;
+            color: #0066cc;
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .quick-start-list {
+            list-style: none;
+            color: #333;
+        }
+        
+        .quick-start-list li {
+            padding: 8px 0;
+            font-size: 15px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .quick-start-list li:before {
+            content: "→";
+            color: #667eea;
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        
+        .credentials-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            color: #856404;
+        }
+        
+        .credentials-box strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+        
+        .email-footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #eee;
+            color: #666;
+            font-size: 13px;
+        }
+        
+        .footer-links {
+            margin: 15px 0;
+        }
+        
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        
+        @media only screen and (max-width: 600px) {
+            .email-container {
+                width: 100%;
+            }
+            
+            .email-body {
+                padding: 25px 15px;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="email-header">
+            {% if logo_url %}
+            <img src="{{ logo_url }}" alt="{{ gym_name }}" class="logo">
+            {% endif %}
+            <div class="gym-name">{{ gym_name }}</div>
+            <p style="margin-top: 10px; font-size: 18px;">🎉 Welcome!</p>
+        </div>
+        
+        <div class="email-body">
+            <div class="greeting">Hi {{ client_name }},</div>
+            
+            <div class="welcome-box">
+                <strong>Welcome to {{ gym_name }}!</strong>
+                <p>Your journey to a healthier lifestyle starts now. We're excited to have you as part of our community!</p>
+            </div>
+            
+            <div class="content">
+                Thank you for registering with us. Your account has been successfully created. Here's everything you need to know to get started.
+            </div>
+            
+            <div class="credentials-box">
+                <strong>Your Login Details:</strong>
+                <div style="margin-top: 8px;">
+                    <strong>Email:</strong> {{ client_email }}<br>
+                    <strong>Username:</strong> {{ client_username or client_name }}
+                </div>
+            </div>
+            
+            <div style="text-align: center;">
+                <a href="{{ login_link }}" class="cta-button">Login to Your Account</a>
+            </div>
+            
+            <div class="quick-start">
+                <div class="quick-start-title">⚡ Quick Start Guide</div>
+                <ul class="quick-start-list">
+                    <li>Complete your profile setup</li>
+                    <li>Book your first training session</li>
+                    <li>Explore our class schedules</li>
+                    <li>Download our mobile app</li>
+                    <li>Connect with our trainers</li>
+                </ul>
+            </div>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">💪</div>
+                    <div class="feature-title">Personal Training</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📅</div>
+                    <div class="feature-title">Class Booking</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <div class="feature-title">Progress Tracking</div>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏆</div>
+                    <div class="feature-title">Achievements</div>
+                </div>
+            </div>
+            
+            <div class="content" style="font-size: 14px; color: #777;">
+                <strong>Need Help?</strong> Our support team is here to assist you. Feel free to reach out with any questions or concerns. We look forward to working with you and helping you achieve your fitness goals!
+            </div>
+        </div>
+        
+        <div class="email-footer">
+            <p>&copy; {{ year }} {{ gym_name }}. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="#">Contact Support</a> | 
+                <a href="#">Privacy Policy</a> | 
+                <a href="#">Unsubscribe</a>
+            </div>
+            <p style="margin-top: 15px; color: #999;">
+                {{ support_email }}
+            </p>
+        </div>
+    </div>
+</body>
+</html>
