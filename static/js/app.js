@@ -397,6 +397,25 @@ async function loadStats(force = false) {
     }
 }
 
+async function refreshAllData() {
+    showToast("Refreshing all data...", "info", 2000);
+    Cache.invalidate("stats", "insights");
+    try {
+        await Promise.all([
+            loadStats(true),
+            loadInsights(true),
+            loadClients(true),
+            loadPayments(true),
+            loadNotifications(),
+            loadEmailLogs(1),
+        ]);
+        showToast("All data refreshed successfully!", "success");
+    } catch (e) {
+        console.error("Refresh error:", e);
+        showToast("Error refreshing data", "error");
+    }
+}
+
 async function loadInsights(force = false) {
     const cached = !force && Cache.get("insights", 30000);
     if (cached) {
@@ -780,11 +799,15 @@ async function handleClientSubmit(event) {
         }
         const saved = await response.json();
         closeModal("client-modal");
-        if (!id && saved.welcome_email_sent) {
-            alert(`Client saved. Welcome email sent to ${saved.email}.`);
-        } else if (!id && saved.email) {
-            alert("Client saved. Welcome email could not be sent — check SMTP settings in .env.");
+
+        if (saved.message) {
+            showToast(saved.message, saved.welcome_email_sent || !saved.email ? "success" : "warning", 5000);
+        } else if (!id) {
+            showToast("Client created successfully!", "success");
+        } else {
+            showToast("Client updated successfully!", "success");
         }
+
         Cache.invalidate("stats", "insights");
         await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
     } catch (e) {
@@ -1326,16 +1349,15 @@ async function loadEmailStats() {
     }
 }
 
-async function updateEmailStats(stats) {
+function updateEmailStats(stats) {
     const sentEl = document.getElementById('email-stats-sent');
     const failedEl = document.getElementById('email-stats-failed');
     const rateEl = document.getElementById('email-stats-rate');
 
-    if (sentEl) sentEl.textContent = String(stats.sent || 0);
-    if (failedEl) failedEl.textContent = String(stats.failed || 0);
+    if (sentEl) sentEl.textContent = String(stats.total_sent || 0);
+    if (failedEl) failedEl.textContent = String(stats.total_failed || 0);
     if (rateEl) {
-        const total = (stats.sent || 0) + (stats.failed || 0);
-        const rate = total > 0 ? Math.round(((stats.sent || 0) / total) * 100) : 0;
+        const rate = stats.success_rate || 0;
         rateEl.textContent = `${rate}%`;
     }
 }
@@ -1385,9 +1407,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     const galleryClient = document.getElementById("gallery-client");
     if (galleryClient) galleryClient.addEventListener("change", () => loadGallery());
 
+    // Auto-refresh notifications every 30 seconds
     setInterval(() => {
         loadNotifications();
     }, 30000);
+
+    // Auto-refresh stats and insights every 60 seconds
+    setInterval(() => {
+        loadStats(false);
+        loadInsights(false);
+    }, 60000);
 
     // Auto-check for due reminders in the background after 5 seconds
     setTimeout(() => {

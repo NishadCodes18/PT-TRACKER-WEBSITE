@@ -24,16 +24,18 @@
     </nav>
     <main class="container">
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>⚙️ Admin Controls</h2>
+                <button class="btn btn-primary" onclick="refreshAllAdminData()">🔄 Refresh All Data</button>
             </div>
             <div class="card-body">
                 <p class="text-muted" style="font-size:14px;">Set monthly targets and payout percentages for each trainer. Default: 50% when target achieved, 40% when below. You can set a manual override per trainer.</p>
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>🎯 Trainer Management</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadTrainersAndPolicies()">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <form id="trainer-create-form" onsubmit="createTrainer(event)" style="margin-bottom:20px;">
@@ -65,8 +67,9 @@
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>🎯 Trainer Commission Rules</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadTrainersAndPolicies()">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div id="commission-policies-list">
@@ -75,8 +78,9 @@
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>💰 Current Month Payouts</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadPayouts()">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div id="payouts-list">
@@ -107,8 +111,9 @@
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>🔔 Recent Notifications</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadNotificationHistory()">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div id="admin-notification-history">
@@ -118,8 +123,9 @@
         </section>
 
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>📧 Email Logs</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadEmailLogs(1)">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div id="email-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">

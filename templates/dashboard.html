@@ -85,6 +85,7 @@
                 <h2>⚙ Tools</h2>
             </div>
             <div class="card-body" style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button class="btn btn-sm btn-primary" onclick="refreshAllData()">🔄 Refresh All Data</button>
                 <button class="btn btn-sm btn-outline" onclick="downloadExport('clients-excel')">📊 Export Clients</button>
                 <button class="btn btn-sm btn-outline" onclick="downloadExport('payments-excel')">💰 Export Payments</button>
                 <button class="btn btn-sm btn-outline" onclick="downloadExport('expenses-excel')">📉 Export Expenses</button>
@@ -93,8 +94,9 @@
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>📈 Insights</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadInsights(true)">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div class="stats-grid" style="margin-bottom: 14px;">
@@ -157,7 +159,10 @@
         <section class="card clients-section">
             <div class="card-header">
                 <h2>👥 Clients</h2>
-                <button class="btn btn-primary" onclick="openModal('client-modal')">+ Add Client</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="loadClients(true)">🔄 Refresh</button>
+                    <button class="btn btn-primary" onclick="openModal('client-modal')">+ Add Client</button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="form-group" style="margin-bottom: 10px;">
@@ -182,7 +187,10 @@
         <section class="card payments-section">
             <div class="card-header">
                 <h2>💳 Payments</h2>
-                <button class="btn btn-primary" onclick="openModal('payment-modal')">+ Log Payment</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="loadPayments(true)">🔄 Refresh</button>
+                    <button class="btn btn-primary" onclick="openModal('payment-modal')">+ Log Payment</button>
+                </div>
             </div>
             <div class="card-body">
                 <div class="form-group" style="margin-bottom: 10px;">
@@ -274,8 +282,9 @@
             </div>
         </section>
         <section class="card">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <h2>🔔 Notifications</h2>
+                <button class="btn btn-sm btn-outline" onclick="loadNotifications()">🔄 Refresh</button>
             </div>
             <div class="card-body">
                 <div id="notifications-list">

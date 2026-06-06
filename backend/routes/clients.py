@@ -218,11 +218,19 @@ def create_client():
     db.session.commit()
 
     welcome_email_sent = False
+    email_message = None
     if client.email:
         welcome_email_sent = send_client_welcome_email(client)
+        if welcome_email_sent:
+            email_message = f"Client created successfully! Welcome email sent to {client.email}"
+        else:
+            email_message = f"Client created successfully, but welcome email could not be sent to {client.email}. Check SMTP settings."
+    else:
+        email_message = "Client created successfully!"
 
     payload = _serialize_client(client)
     payload["welcome_email_sent"] = welcome_email_sent
+    payload["message"] = email_message
     return jsonify(payload), 201
 
 

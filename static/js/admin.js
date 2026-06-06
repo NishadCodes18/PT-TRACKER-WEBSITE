@@ -347,17 +347,37 @@ async function loadNotificationHistory() {
         document.getElementById('admin-notification-history').innerHTML = '<p class="text-muted">Unable to load notifications</p>';
     }
 }
+
+async function refreshAllAdminData() {
+    try {
+        await Promise.all([
+            loadTrainersAndPolicies(),
+            loadPayouts(),
+            loadNotificationHistory(),
+            loadEmailLogs(1)
+        ]);
+        alert('All admin data refreshed successfully!');
+    } catch (error) {
+        console.error('Error refreshing admin data:', error);
+        alert('Error refreshing some data. Check console for details.');
+    }
+}
+
 // Email Logs Functions
 async function loadEmailStats() {
     try {
-        const days = document.getElementById('email-days-filter').value;
+        const days = document.getElementById('email-days-filter')?.value || '30';
         const response = await fetch(`${API_BASE}/api/email-logs/stats?days=${days}`);
         if (!response.ok) throw new Error('Failed to load email stats');
 
         const stats = await response.json();
-        document.getElementById('stat-sent').textContent = stats.total_sent || 0;
-        document.getElementById('stat-failed').textContent = stats.total_failed || 0;
-        document.getElementById('stat-success-rate').textContent = `${stats.success_rate || 0}%`;
+        const sentEl = document.getElementById('stat-sent');
+        const failedEl = document.getElementById('stat-failed');
+        const rateEl = document.getElementById('stat-success-rate');
+
+        if (sentEl) sentEl.textContent = stats.total_sent || 0;
+        if (failedEl) failedEl.textContent = stats.total_failed || 0;
+        if (rateEl) rateEl.textContent = `${stats.success_rate || 0}%`;
     } catch (error) {
         console.error('Error loading email stats:', error);
     }
@@ -458,4 +478,10 @@ function renderEmailLogsPagination(pagination, currentPage) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadTrainersAndPolicies(), loadPayouts(), loadNotificationHistory(), loadEmailLogs()]);
+
+    // Auto-refresh admin data every 60 seconds
+    setInterval(() => {
+        loadPayouts();
+        loadNotificationHistory();
+    }, 60000);
 });

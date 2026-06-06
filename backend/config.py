@@ -4,7 +4,6 @@ from datetime import timedelta
 _BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 _DEFAULT_DB_PATH = os.path.join(_BASE_DIR, 'gym_tracker.db').replace('\\', '/')
 
-
 def _env(name, default=None, *, strip=True, remove_spaces=False):
     value = os.environ.get(name, default)
     if value is None:
@@ -16,13 +15,11 @@ def _env(name, default=None, *, strip=True, remove_spaces=False):
         value = value.replace(' ', '')
     return value
 
-
 def _env_bool(name, default=False):
     value = os.environ.get(name)
     if value is None:
         return default
-    return str(value).strip().lower() in {'1', 'true', 'yes', 'on'}
-
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on', 't'}
 
 def _database_uri():
     uri = os.environ.get('DATABASE_URL')
@@ -31,7 +28,6 @@ def _database_uri():
             uri = uri.replace('postgres://', 'postgresql://', 1)
         return uri
     return f'sqlite:///{_DEFAULT_DB_PATH}'
-
 
 class Config:
     """Application configuration class"""
@@ -63,10 +59,13 @@ class Config:
     PASSWORD_RESET_OTP_MINUTES = int(_env('PASSWORD_RESET_OTP_MINUTES', 10, strip=True))
     PASSWORD_RESET_MAX_ATTEMPTS = int(_env('PASSWORD_RESET_MAX_ATTEMPTS', 5, strip=True))
 
+    # --- EMAIL SETTINGS ---
     SMTP_SERVER = _env('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(_env('SMTP_PORT', 587, strip=True))
+    SMTP_USE_TLS = _env_bool('SMTP_USE_TLS', True) # Added this to force TLS security
     SMTP_USER = _env('SMTP_USER')
     SMTP_PASSWORD = _env('SMTP_PASSWORD', remove_spaces=True)
+    
     GYM_NAME = _env('GYM_NAME', 'NITRRO ZONE 360')
     APP_DEVELOPER = _env('APP_DEVELOPER', 'NISHAD PATIL')
 
