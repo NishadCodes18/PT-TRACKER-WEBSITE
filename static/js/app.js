@@ -221,10 +221,9 @@ function renderClients(clients) {
                     <button class="btn btn-sm btn-outline" onclick="editClient(${c.id})">Edit</button>
                     ${
                         c.status === "ongoing"
-                            ? `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id})">Mark Lost</button>`
-                            : IS_ADMIN
-                              ? `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id})">Delete</button>`
-                              : ""
+                            ? `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, false)">Mark Lost</button>`
+                            : `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, false)">Delete</button>
+                               <button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, true)" style="opacity:0.7;" title="Permanently delete this client and all associated data">Delete Permanently</button>`
                     }
                     ${c.email ? `<button class="btn btn-sm btn-outline" onclick="sendReminders('specific', ${c.id})" title="Send Reminder">Email</button>` : ""}
                 </div>
@@ -257,7 +256,10 @@ function renderPayments(payments) {
                     ${gymPaymentLabel}
                 </div>
             </div>
-            <button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id})">Delete</button>
+            <div style="display:flex;gap:6px;">
+                <button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id}, false)">Delete</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePayment(${p.id}, true)" style="opacity:0.7;" title="Permanently delete this payment from database">Delete Permanently</button>
+            </div>
         </div>
     `;
                 }
@@ -859,22 +861,37 @@ function populateClientForm(client) {
     updateExpectedAmount();
 }
 
-async function deleteClient(id) {
+async function deleteClient(id, permanent = false) {
     const client = (state.clients || []).find((c) => c.id === id);
     const isLost = client && client.status === "lost";
 
-    if (isLost) {
-        if (!confirm("Permanently delete this client? All their payments will also be removed.")) return;
+    if (permanent || isLost) {
+        const clientName = client ? client.name : "this client";
+        const confirmMsg = `⚠️ WARNING: PERMANENT DELETE ⚠️\n\nYou are about to PERMANENTLY DELETE "${clientName}".\n\nThis action will:\n• Remove the client completely from the database\n• Delete ALL associated payments\n• Delete ALL attendance records\n• Delete ALL progress photos\n• This CANNOT be undone\n\nType DELETE in the box below to confirm:`;
+
+        const userInput = prompt(confirmMsg);
+        if (userInput !== "DELETE") {
+            if (userInput !== null) {
+                alert("Deletion cancelled. You must type DELETE exactly to confirm.");
+            }
+            return;
+        }
+
+        const doubleConfirm = confirm(`Final confirmation: Permanently delete "${clientName}" and all associated data?\n\nThis is your last chance to cancel.`);
+        if (!doubleConfirm) return;
+
         try {
             const r = await apiFetch(`${API_BASE}/api/clients/${id}`, { method: "DELETE" });
             if (!r.ok) {
                 alert(await readErrorMessage(r, "Could not delete client."));
                 return;
             }
+            showToast(`Client "${clientName}" permanently deleted`, "success");
             Cache.invalidate("stats", "insights");
             await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
         } catch (e) {
             console.error(e);
+            alert("Error deleting client");
         }
         return;
     }
@@ -889,6 +906,7 @@ async function deleteClient(id) {
             alert(await readErrorMessage(r, "Could not update client."));
             return;
         }
+        showToast("Client moved to Lost section", "success");
         Cache.invalidate("stats", "insights");
         await Promise.all([loadClients(true), loadStats(true), loadInsights(true)]);
     } catch (e) {
@@ -957,14 +975,34 @@ async function handlePaymentSubmit(event) {
     }
 }
 
-async function deletePayment(id) {
-    if (!confirm("Delete this payment record?")) return;
+async function deletePayment(id, permanent = false) {
+    const payment = (state.payments || []).find((p) => p.id === id);
+    const paymentInfo = payment ? `${formatCurrency(payment.amount)} from ${payment.client_name}` : "this payment";
+
+    if (permanent) {
+        const confirmMsg = `⚠️ WARNING: PERMANENT DELETE ⚠️\n\nYou are about to PERMANENTLY DELETE:\n${paymentInfo}\n\nThis action will:\n• Remove the payment completely from the database\n• Affect income statistics and reports\n• Affect client renewal calculations\n• This CANNOT be undone\n\nType DELETE in the box below to confirm:`;
+
+        const userInput = prompt(confirmMsg);
+        if (userInput !== "DELETE") {
+            if (userInput !== null) {
+                alert("Deletion cancelled. You must type DELETE exactly to confirm.");
+            }
+            return;
+        }
+
+        const doubleConfirm = confirm(`Final confirmation: Permanently delete payment record?\n\n${paymentInfo}\n\nThis is your last chance to cancel.`);
+        if (!doubleConfirm) return;
+    } else {
+        if (!confirm(`Delete this payment record?\n\n${paymentInfo}`)) return;
+    }
+
     try {
         const r = await apiFetch(`${API_BASE}/api/payments/${id}`, { method: "DELETE" });
         if (!r.ok) {
             alert(await readErrorMessage(r, "Error deleting payment"));
             return;
         }
+        showToast(permanent ? "Payment permanently deleted" : "Payment deleted", "success");
         Cache.invalidate("stats", "insights");
         await Promise.all([loadPayments(true), loadStats(true), loadInsights(true)]);
     } catch (e) {
