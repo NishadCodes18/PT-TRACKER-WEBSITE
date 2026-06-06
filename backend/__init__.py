@@ -121,66 +121,8 @@ def create_app(config_class=Config):
 
         return dict(csrf_token=generate_csrf)
 
-    @app.errorhandler(HTTPException)
-    def handle_http_exception(exc):
-        if request.path.startswith("/api/"):
-            return api_error(exc.description or "Request failed", code="http_error", status=exc.code)
-        return exc
-
-    @app.errorhandler(400)
-    def handle_bad_request(exc):
-        if request.path.startswith("/api/"):
-            message = getattr(exc, "description", "Bad request")
-            return api_error(message, code="bad_request", status=400)
-        return exc
-
-    @app.errorhandler(403)
-    def handle_forbidden(exc):
-        if request.path.startswith("/api/"):
-            return api_error("Forbidden", code="forbidden", status=403)
-        return exc
-
-    @app.errorhandler(404)
-    def handle_not_found(exc):
-        if request.path.startswith("/api/"):
-            return api_error("Not found", code="not_found", status=404)
-        return exc
-
-    @app.errorhandler(429)
-    def handle_rate_limit(exc):
-        if request.path.startswith("/api/"):
-            return api_error("Too many requests. Please slow down.", code="rate_limited", status=429)
-        return exc
-
-    @app.errorhandler(500)
-    def handle_server_error(exc):
-        app.logger.exception("Unhandled error: %s", exc)
-        if request.path.startswith("/api/"):
-            return api_error("Internal server error", code="server_error", status=500)
-        return exc
-
-    @app.before_request
-    def _track_request_start():
-        g._request_started_at = time.perf_counter()
-
     @app.after_request
-    def _log_request_metrics(response):
-        started_at = getattr(g, "_request_started_at", None)
-        if started_at is not None:
-            elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
-            level = logging.WARNING if elapsed_ms >= app.config.get("SLOW_REQUEST_MS", 400) else logging.INFO
-            user_id = getattr(current_user, "id", None)
-
-            app.logger.log(
-                level,
-                "request path=%s method=%s status=%s elapsed_ms=%s user_id=%s",
-                request.path,
-                request.method,
-                response.status_code,
-                elapsed_ms,
-                user_id,
-            )
-
+    def _add_security_headers(response):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
@@ -196,17 +138,12 @@ def create_app(config_class=Config):
         return response
 
     print("✓ Initializing database tables")
-    try:
-        with app.app_context():
-            db.create_all()
-            print("✓ Database tables created")
-            if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-                _run_sqlite_compat_migrations()
-                print("✓ SQLite migrations completed")
-    except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
-        app.logger.error(f"Database initialization failed: {e}")
-        raise
+    with app.app_context():
+        db.create_all()
+        print("✓ Database tables created")
+        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+            _run_sqlite_compat_migrations()
+            print("✓ SQLite migrations completed")
 
     print("✓ Registering blueprints")
     from .routes.admin import admin_bp

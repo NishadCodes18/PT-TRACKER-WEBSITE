@@ -37,7 +37,13 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-prod'
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'pool_size': 10,
+        'max_overflow': 5,
+        'connect_args': {'connect_timeout': 10}
+    }
 
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     SESSION_COOKIE_HTTPONLY = True
@@ -50,8 +56,7 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = int(_env('WTF_CSRF_TIME_LIMIT', 3600, strip=True))
 
-    LOG_LEVEL = _env('LOG_LEVEL', 'INFO')
-    SLOW_REQUEST_MS = int(_env('SLOW_REQUEST_MS', 400, strip=True))
+    LOG_LEVEL = _env('LOG_LEVEL', 'WARNING')
     LOGIN_MAX_ATTEMPTS = int(_env('LOGIN_MAX_ATTEMPTS', 5, strip=True))
     LOGIN_LOCKOUT_MINUTES = int(_env('LOGIN_LOCKOUT_MINUTES', 15, strip=True))
     ADMIN_USERNAME = _env('ADMIN_USERNAME', 'adminvenom')
@@ -63,13 +68,13 @@ class Config:
     SMTP_SERVER = _env('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(_env('SMTP_PORT', 587, strip=True))
     SMTP_USE_TLS = _env_bool('SMTP_USE_TLS', True)
-    SMTP_USE_SSL = _env_bool('SMTP_USE_SSL', False)  # Use SSL instead of TLS (port 465)
+    SMTP_USE_SSL = _env_bool('SMTP_USE_SSL', False)
     SMTP_USER = _env('SMTP_USER')
     SMTP_PASSWORD = _env('SMTP_PASSWORD', remove_spaces=True)
-    
+
     GYM_NAME = _env('GYM_NAME', 'NITRRO ZONE 360')
     APP_DEVELOPER = _env('APP_DEVELOPER', 'NISHAD PATIL')
 
     CRON_SECRET = _env('CRON_SECRET')
     RATELIMIT_ENABLED = _env_bool('RATELIMIT_ENABLED', True)
-    RATELIMIT_DEFAULT = _env('RATELIMIT_DEFAULT', '200 per hour')
+    RATELIMIT_DEFAULT = _env('RATELIMIT_DEFAULT', '500 per hour')
