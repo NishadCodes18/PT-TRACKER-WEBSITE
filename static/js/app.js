@@ -798,6 +798,7 @@ function populateClientForm(client) {
 async function deleteClient(id, permanent = false) {
     const client = (state.clients || []).find((c) => c.id === id);
     const clientName = client ? client.name : "this client";
+    const isLostClient = client && client.status === "lost";
 
     if (permanent) {
         const confirmMsg = `⚠️ WARNING: PERMANENT DELETE ⚠️\n\nYou are about to PERMANENTLY DELETE "${clientName}".\n\nThis action will:\n• Remove the client completely from the database\n• Delete ALL associated payments\n• Delete ALL attendance records\n• Delete ALL progress photos\n• This CANNOT be undone\n\nType DELETE in the box below to confirm:`;
@@ -829,6 +830,27 @@ async function deleteClient(id, permanent = false) {
         return;
     }
 
+    // If client is already lost, permanently delete them
+    if (isLostClient) {
+        if (!confirm(`Permanently delete "${clientName}"? This will remove all data and cannot be undone.`)) return;
+
+        try {
+            const r = await apiFetch(`${API_BASE}/api/clients/${id}`, { method: "DELETE" });
+            if (!r.ok) {
+                alert(await readErrorMessage(r, "Could not delete client."));
+                return;
+            }
+            showToast(`Client "${clientName}" permanently deleted`, "success");
+            Cache.invalidate("stats", "insights");
+            await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
+        } catch (e) {
+            console.error(e);
+            alert("Error deleting client");
+        }
+        return;
+    }
+
+    // If client is ongoing, move to lost
     if (!confirm("Move this client to the Lost section?")) return;
     try {
         const r = await apiFetch(`${API_BASE}/api/clients/${id}`, {
@@ -1359,6 +1381,46 @@ function changeEmailLogsPage(delta) {
     }
 }
 
+async function sendEmail(clientId) {
+    const client = (state.clients || []).find((c) => c.id === clientId);
+
+    if (!client) {
+        alert("Client not found");
+        return;
+    }
+
+    if (!client.email) {
+        alert("This client has no email address");
+        return;
+    }
+
+    const confirmMsg = `Send welcome email to ${client.name} at ${client.email}?`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+        const r = await apiFetch(`${API_BASE}/api/send-email/${clientId}`, {
+            method: "POST",
+            body: JSON.stringify({ type: "welcome" }),
+        });
+
+        const data = await r.json();
+
+        if (r.ok && data.success) {
+            showToast(data.message || `Email sent successfully to ${client.email}`, "success");
+        } else {
+            alert(data.error || "Failed to send email. Check SMTP settings in Render environment variables.");
+        }
+
+        // Reload email logs to show the attempt
+        await loadEmailLogs(1);
+    } catch (e) {
+        console.error(e);
+        alert("Error sending email. Please check your SMTP configuration.");
+        // Still reload logs to show the failure
+        await loadEmailLogs(1);
+    }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
     if (IS_PROFILE_PAGE) {
         return;
@@ -1370,6 +1432,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadClients(true),
         loadPayments(true),
         loadNotifications(),
+        loadEmailLogs(1),
         IS_ADMIN ? loadAdminTrainers() : Promise.resolve(),
         IS_ADMIN ? loadImpersonateDropdown() : Promise.resolve(),
         checkImpersonationStatus(),
