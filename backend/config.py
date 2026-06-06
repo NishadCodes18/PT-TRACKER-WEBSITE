@@ -65,12 +65,26 @@ class Config:
     PASSWORD_RESET_MAX_ATTEMPTS = int(_env('PASSWORD_RESET_MAX_ATTEMPTS', 5, strip=True))
 
     # --- EMAIL SETTINGS ---
+    # SMTP (legacy - may not work on Render free tier)
     SMTP_SERVER = _env('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(_env('SMTP_PORT', 587, strip=True))
     SMTP_USE_TLS = _env_bool('SMTP_USE_TLS', True)
     SMTP_USE_SSL = _env_bool('SMTP_USE_SSL', False)
     SMTP_USER = _env('SMTP_USER')
     SMTP_PASSWORD = _env('SMTP_PASSWORD', remove_spaces=True)
+
+    # Brevo API (recommended for Render free tier)
+    BREVO_API_KEY = _env('BREVO_API_KEY')
+    BREVO_SENDER_EMAIL = _env('BREVO_SENDER_EMAIL')
+    BREVO_SENDER_NAME = _env('BREVO_SENDER_NAME', 'PT Tracker')
+
+    # Mailgun API (alternative for Render free tier)
+    MAILGUN_API_KEY = _env('MAILGUN_API_KEY')
+    MAILGUN_DOMAIN = _env('MAILGUN_DOMAIN')
+    MAILGUN_FROM_EMAIL = _env('MAILGUN_FROM_EMAIL')
+
+    # Email provider preference: 'brevo_api', 'mailgun_api' or 'smtp'
+    EMAIL_PROVIDER = _env('EMAIL_PROVIDER', 'brevo_api')
 
     GYM_NAME = _env('GYM_NAME', 'NITRRO ZONE 360')
     APP_DEVELOPER = _env('APP_DEVELOPER', 'NISHAD PATIL')

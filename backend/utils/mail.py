@@ -11,6 +11,18 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .email_context import build_email_context
 
+try:
+    from .mailgun_api import send_email_via_mailgun_api, validate_mailgun_configured
+    MAILGUN_AVAILABLE = True
+except ImportError:
+    MAILGUN_AVAILABLE = False
+
+try:
+    from .brevo_api import send_email_via_brevo_api, validate_brevo_configured
+    BREVO_AVAILABLE = True
+except ImportError:
+    BREVO_AVAILABLE = False
+
 def validate_smtp_configured():
     """Check if SMTP credentials are configured."""
     from flask import current_app
@@ -29,7 +41,59 @@ def send_html_email(
     recipient_name=None,
     **context,
 ):
-    """Send an HTML email using a template optimized for Render."""
+    """Send an HTML email using configured provider (Brevo API, Mailgun API or SMTP)."""
+    if not recipient:
+        return False
+
+    # Check which email provider is configured
+    email_provider = current_app.config.get('EMAIL_PROVIDER', 'smtp')
+
+    # Try Brevo API first if configured
+    if email_provider == 'brevo_api' and BREVO_AVAILABLE:
+        if validate_brevo_configured():
+            return send_email_via_brevo_api(
+                recipient, subject, template_name,
+                trainer_id=trainer_id,
+                email_type=email_type,
+                client_id=client_id,
+                recipient_name=recipient_name,
+                **context
+            )
+
+    # Try Mailgun API if configured
+    if email_provider == 'mailgun_api' and MAILGUN_AVAILABLE:
+        if validate_mailgun_configured():
+            return send_email_via_mailgun_api(
+                recipient, subject, template_name,
+                trainer_id=trainer_id,
+                email_type=email_type,
+                client_id=client_id,
+                recipient_name=recipient_name,
+                **context
+            )
+
+    # Fall back to SMTP
+    return _send_html_email_smtp(
+        recipient, subject, template_name,
+        trainer_id=trainer_id,
+        email_type=email_type,
+        client_id=client_id,
+        recipient_name=recipient_name,
+        **context
+    )
+
+
+def _send_html_email_smtp(
+    recipient,
+    subject,
+    template_name,
+    trainer_id=None,
+    email_type='renewal_reminder',
+    client_id=None,
+    recipient_name=None,
+    **context,
+):
+    """Send an HTML email using SMTP (legacy method)."""
     if not recipient:
         return False
 
@@ -105,7 +169,7 @@ def send_html_email(
 
 
 def send_html_email_async(app, recipient, subject, template_name, **context):
-    """Send HTML email asynchronously in a thread."""
+    """Send HTML email asynchronously (supports both Mailgun API and SMTP)."""
 
     def _send():
         try:
