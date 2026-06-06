@@ -28,6 +28,12 @@ services:
           property: connectionString
       - key: SMTP_SERVER
         sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USE_TLS
+        sync: false
+      - key: SMTP_USE_SSL
+        sync: false
       - key: SMTP_USER
         sync: false
       - key: SMTP_PASSWORD

@@ -62,13 +62,6 @@
                     <p class="stat-value" id="lost-clients">0</p>
                 </div>
             </div>
-            <div class="stat-card stat-overdue">
-                <div class="stat-icon">🚨</div>
-                <div class="stat-info">
-                    <h3>Overdue Renewals</h3>
-                    <p class="stat-value" id="overdue-clients-count">0</p>
-                </div>
-            </div>
             {% if not is_admin %}
             <div class="stat-card stat-profit">
                 <div class="stat-icon">🎯</div>
@@ -90,7 +83,6 @@
                 <button class="btn btn-sm btn-outline" onclick="downloadExport('payments-excel')">💰 Export Payments</button>
                 <button class="btn btn-sm btn-outline" onclick="downloadExport('expenses-excel')">📉 Export Expenses</button>
                 <button class="btn btn-sm btn-outline" onclick="downloadBackupJson()">💾 Backup Data</button>
-                <button class="btn btn-sm btn-primary" onclick="sendReminders('due_closest')">📧 Send Renewal Reminders</button>
             </div>
         </section>
         <section class="card">
@@ -134,28 +126,6 @@
             </div>
         </section>
         {% endif %}
-        <section class="card overdue-section" id="overdue-section" style="display:none;">
-            <div class="card-header">
-                <h2>🚨 Action Required — Call Today!</h2>
-            </div>
-            <div class="card-body">
-                <div id="overdue-list"></div>
-            </div>
-        </section>
-        <section class="card renewals-section">
-            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h2>⏰ Upcoming Renewals <span style="font-size:12px; font-weight:400; color:var(--text-muted);">(next 7 days)</span></h2>
-                <div>
-                    <button class="btn btn-sm btn-outline" onclick="sendReminders('due_closest')">Send Due</button>
-                    <button class="btn btn-sm btn-outline" onclick="sendReminders('all')">Send All</button>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="renewals-list">
-                    <p class="text-muted">Loading...</p>
-                </div>
-            </div>
-        </section>
         <section class="card clients-section">
             <div class="card-header">
                 <h2>👥 Clients</h2>
@@ -343,17 +313,12 @@
                     <small class="text-muted" style="font-size:11px; margin-top:4px; display:block;">1-hour slot auto-assigned (e.g. 9:00 → 9–10 AM)</small>
                 </div>
                 <div class="form-group">
-                    <label for="client-renewal-date">Renewal Date</label>
-                    <input type="date" id="client-renewal-date">
-                    <small class="text-muted" style="font-size:11px; margin-top:4px; display:block;">When does this client's membership expire?</small>
-                </div>
-                <div class="form-group">
                     <label for="client-notes">Notes</label>
                     <textarea id="client-notes" rows="3" placeholder="Any special notes about this client..."></textarea>
                 </div>
                 <div class="form-group" style="display:flex; align-items:center; gap:10px;">
                     <input type="checkbox" id="client-email-reminders" style="width:auto; margin:0;">
-                    <label for="client-email-reminders" style="margin:0;">Enable renewal email reminders</label>
+                    <label for="client-email-reminders" style="margin:0;">Enable email reminders</label>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeModal('client-modal')">Cancel</button>

@@ -305,10 +305,13 @@ def update_client(client_id):
 @clients_bp.route("/<int:client_id>", methods=["DELETE"])
 @login_required
 def delete_client(client_id):
-    if not _is_admin():
-        return jsonify({"error": "Only admins can permanently delete clients"}), 403
+    client_query = Client.query.filter_by(id=client_id)
 
-    client = Client.query.filter_by(id=client_id).first_or_404()
+    # If not admin, restrict to own clients only
+    if not _is_admin():
+        client_query = client_query.filter_by(trainer_id=current_user.id)
+
+    client = client_query.first_or_404()
     db.session.delete(client)
     db.session.commit()
     return "", 204

@@ -74,6 +74,10 @@ def _run_sqlite_compat_migrations():
 
 def create_app(config_class=Config):
     """Application factory for creating Flask app."""
+    print("=" * 60)
+    print("STARTING FLASK APPLICATION")
+    print("=" * 60)
+
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(
         __name__,
@@ -81,6 +85,7 @@ def create_app(config_class=Config):
         static_folder=os.path.join(root_dir, "static"),
     )
     app.config.from_object(config_class)
+    print(f"✓ Config loaded - IS_PRODUCTION: {app.config.get('IS_PRODUCTION')}")
 
     if app.config.get("SECRET_KEY") == "dev-secret-key-change-in-prod" and app.config.get("IS_PRODUCTION"):
         raise RuntimeError("Set a strong SECRET_KEY environment variable before running in production.")
@@ -88,8 +93,11 @@ def create_app(config_class=Config):
     log_level = str(app.config.get("LOG_LEVEL", "INFO")).upper()
     app.logger.setLevel(getattr(logging, log_level, logging.INFO))
 
+    print(f"✓ Initializing database - URI: {app.config.get('SQLALCHEMY_DATABASE_URI')[:30]}...")
     db.init_app(app)
+    print("✓ Initializing CSRF protection")
     csrf.init_app(app)
+    print("✓ Initializing rate limiter")
     limiter.init_app(app)
 
     login_manager = LoginManager()
@@ -187,11 +195,20 @@ def create_app(config_class=Config):
             response.headers["Expires"] = "0"
         return response
 
-    with app.app_context():
-        db.create_all()
-        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-            _run_sqlite_compat_migrations()
+    print("✓ Initializing database tables")
+    try:
+        with app.app_context():
+            db.create_all()
+            print("✓ Database tables created")
+            if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                _run_sqlite_compat_migrations()
+                print("✓ SQLite migrations completed")
+    except Exception as e:
+        print(f"❌ Database initialization failed: {e}")
+        app.logger.error(f"Database initialization failed: {e}")
+        raise
 
+    print("✓ Registering blueprints")
     from .routes.admin import admin_bp
     from .routes.admin_management import admin_bp as admin_mgmt_bp
     from .routes.analytics import analytics_bp
@@ -207,6 +224,7 @@ def create_app(config_class=Config):
     from .routes.tracking import tracking_bp
     from .routes.email_logs import email_logs_bp
     from .routes.impersonate import impersonate_bp
+    from .routes.smtp_test import smtp_test_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -223,8 +241,10 @@ def create_app(config_class=Config):
     app.register_blueprint(email_logs_bp)
     app.register_blueprint(impersonate_bp)
     app.register_blueprint(cron_bp)
+    app.register_blueprint(smtp_test_bp)
 
     csrf.exempt(cron_bp)
+    print("✓ All blueprints registered")
 
     @app.route("/")
     def index():
@@ -242,4 +262,7 @@ def create_app(config_class=Config):
     def register_legacy():
         return redirect(url_for("auth.register"))
 
+    print("=" * 60)
+    print("✅ FLASK APP INITIALIZED SUCCESSFULLY")
+    print("=" * 60)
     return app

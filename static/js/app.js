@@ -212,8 +212,6 @@ function renderClients(clients) {
                         ${timeBadge}
                         ${gymBadge}
                         ${trainerBadge}
-                        <span>Date: ${renewalLabel}</span>
-                        ${overdueWarning}
                         ${c.notes ? `<span>- ${escapeHtml(c.notes)}</span>` : ""}
                     </div>
                 </div>
@@ -222,10 +220,10 @@ function renderClients(clients) {
                     ${
                         c.status === "ongoing"
                             ? `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, false)">Mark Lost</button>`
-                            : `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, false)">Delete</button>
-                               <button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, true)" style="opacity:0.7;" title="Permanently delete this client and all associated data">Delete Permanently</button>`
+                            : `<button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, false)">Delete</button>`
                     }
-                    ${c.email ? `<button class="btn btn-sm btn-outline" onclick="sendReminders('specific', ${c.id})" title="Send Reminder">Email</button>` : ""}
+                    <button class="btn btn-sm btn-danger" onclick="deleteClient(${c.id}, true)" style="opacity:0.7;" title="Permanently delete this client and all associated data">Delete Permanently</button>
+                    ${c.email ? `<button class="btn btn-sm btn-outline" onclick="sendEmail(${c.id})" title="Send Email">Email</button>` : ""}
                 </div>
             </div>`;
             })
@@ -292,58 +290,11 @@ function renderNotifications(notifications) {
 }
 
 function renderRenewals(renewals) {
-    if (!renewals || !renewals.length) return '<p class="text-muted">No renewals due in the next 7 days</p>';
-    return (
-        '<div class="payments-list">' +
-        renewals
-            .map(
-                (r) => `
-        <div class="payment-item">
-            <div class="payment-info">
-                <h4>${escapeHtml(r.name)} <span style="font-size:12px;color:var(--text-muted)">(${escapeHtml(r.pt_tier || "Silver")})</span></h4>
-                <div class="client-meta">
-                    <span>Renewal: ${formatDate(r.renewal_date)}</span>
-                    <span>${r.days_until} day(s) left</span>
-                    <span>Expected: ${formatCurrency(r.expected_amount)}</span>
-                </div>
-            </div>
-            <button class="btn btn-sm btn-outline" onclick="editClient(${r.id})">Open</button>
-        </div>
-    `,
-            )
-            .join("") +
-        "</div>"
-    );
+    return '<p class="text-muted">Renewal tracking removed - PT software only</p>';
 }
 
 function renderOverdue(overdueClients) {
-    if (!overdueClients || !overdueClients.length) return '<p class="text-muted">No overdue clients 🎉</p>';
-    return (
-        '<div class="payments-list">' +
-        overdueClients
-            .map((c) => {
-                const emailBtn = c.email
-                    ? `<button class="btn btn-sm btn-outline" onclick="sendReminders('specific', ${c.id})">Email</button>`
-                    : "";
-                return `
-        <div class="payment-item" style="border-left:3px solid #f87171;">
-            <div class="payment-info">
-                <h4>${escapeHtml(c.name)} <span style="font-size:12px;color:#f87171;">(${c.days_overdue} day(s) overdue)</span></h4>
-                <div class="client-meta">
-                    <span>${escapeHtml(c.pt_tier || "Silver")}</span>
-                    <span>Renewal: ${formatDate(c.renewal_date)}</span>
-                    <span>${escapeHtml(c.contact_number || "N/A")}</span>
-                </div>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                ${emailBtn}
-                <button class="btn btn-sm btn-outline" onclick="editClient(${c.id})">Open</button>
-            </div>
-        </div>`;
-            })
-            .join("") +
-        "</div>"
-    );
+    return '<p class="text-muted">Renewal tracking removed - PT software only</p>';
 }
 
 function applyStats(data) {
@@ -362,23 +313,6 @@ function applyStats(data) {
         const meta = document.getElementById("payout-meta");
         if (payout) payout.textContent = formatCurrency(data.payout_summary.estimated_payout);
         if (meta) meta.textContent = `${data.payout_summary.payout_percent}% | Target ${formatCurrency(data.payout_summary.monthly_target)} | ${data.payout_summary.payout_rule}`;
-    }
-
-    const renewalsList = document.getElementById("renewals-list");
-    if (renewalsList) renewalsList.innerHTML = renderRenewals(data.upcoming_renewals || []);
-
-    const overdueSection = document.getElementById("overdue-section");
-    const overdueList = document.getElementById("overdue-list");
-    const overdue = data.overdue_clients || [];
-    const overdueCountEl = document.getElementById("overdue-clients-count");
-    if (overdueCountEl) overdueCountEl.textContent = String(overdue.length);
-    if (overdueSection && overdueList) {
-        if (overdue.length) {
-            overdueSection.style.display = "";
-            overdueList.innerHTML = renderOverdue(overdue);
-        } else {
-            overdueSection.style.display = "none";
-        }
     }
 }
 
@@ -863,10 +797,9 @@ function populateClientForm(client) {
 
 async function deleteClient(id, permanent = false) {
     const client = (state.clients || []).find((c) => c.id === id);
-    const isLost = client && client.status === "lost";
+    const clientName = client ? client.name : "this client";
 
-    if (permanent || isLost) {
-        const clientName = client ? client.name : "this client";
+    if (permanent) {
         const confirmMsg = `⚠️ WARNING: PERMANENT DELETE ⚠️\n\nYou are about to PERMANENTLY DELETE "${clientName}".\n\nThis action will:\n• Remove the client completely from the database\n• Delete ALL associated payments\n• Delete ALL attendance records\n• Delete ALL progress photos\n• This CANNOT be undone\n\nType DELETE in the box below to confirm:`;
 
         const userInput = prompt(confirmMsg);
