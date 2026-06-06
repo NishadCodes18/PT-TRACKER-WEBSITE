@@ -10,6 +10,13 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .email_context import build_email_context
 
+def validate_smtp_configured():
+    """Check if SMTP credentials are configured."""
+    from flask import current_app
+    user = current_app.config.get('SMTP_USER')
+    password = current_app.config.get('SMTP_PASSWORD')
+    return bool(user and password)
+
 def send_html_email(
     recipient,
     subject,
