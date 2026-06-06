@@ -1,9 +1,9 @@
 -- Personal Trainer CRM & Expense Tracker Database Schema
--- SQLite (structured for easy PostgreSQL migration)
+-- Optimized for PostgreSQL / Neon
 
 -- Trainers table: stores user accounts for personal trainers
 CREATE TABLE IF NOT EXISTS trainers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS trainers (
 
 -- Clients table: tracks clients for each trainer
 CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     trainer_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'ongoing' CHECK (status IN ('ongoing', 'lost')),
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS clients (
 
 -- Payments table: tracks income from clients
 CREATE TABLE IF NOT EXISTS payments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     client_id INTEGER NOT NULL,
     trainer_id INTEGER NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS payments (
 
 -- Expenses table: tracks trainer business expenses
 CREATE TABLE IF NOT EXISTS expenses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     trainer_id INTEGER NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
     category TEXT NOT NULL,
