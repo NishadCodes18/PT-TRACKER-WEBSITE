@@ -74,10 +74,6 @@ def _run_sqlite_compat_migrations():
 
 def create_app(config_class=Config):
     """Application factory for creating Flask app."""
-    print("=" * 60)
-    print("STARTING FLASK APPLICATION")
-    print("=" * 60)
-
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app = Flask(
         __name__,
@@ -85,19 +81,15 @@ def create_app(config_class=Config):
         static_folder=os.path.join(root_dir, "static"),
     )
     app.config.from_object(config_class)
-    print(f"✓ Config loaded - IS_PRODUCTION: {app.config.get('IS_PRODUCTION')}")
 
     if app.config.get("SECRET_KEY") == "dev-secret-key-change-in-prod" and app.config.get("IS_PRODUCTION"):
         raise RuntimeError("Set a strong SECRET_KEY environment variable before running in production.")
 
-    log_level = str(app.config.get("LOG_LEVEL", "INFO")).upper()
-    app.logger.setLevel(getattr(logging, log_level, logging.INFO))
+    log_level = str(app.config.get("LOG_LEVEL", "WARNING")).upper()
+    app.logger.setLevel(getattr(logging, log_level, logging.WARNING))
 
-    print(f"✓ Initializing database - URI: {app.config.get('SQLALCHEMY_DATABASE_URI')[:30]}...")
     db.init_app(app)
-    print("✓ Initializing CSRF protection")
     csrf.init_app(app)
-    print("✓ Initializing rate limiter")
     limiter.init_app(app)
 
     login_manager = LoginManager()
@@ -125,25 +117,29 @@ def create_app(config_class=Config):
     def _add_security_headers(response):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
-        response.headers.setdefault(
-            "Content-Security-Policy",
-            "default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
-        )
         if request.endpoint and str(request.endpoint).startswith("auth."):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-            response.headers["Pragma"] = "no-cache"
-            response.headers["Expires"] = "0"
         return response
 
-    print("✓ Initializing database tables")
     with app.app_context():
-        db.create_all()
-        print("✓ Database tables created")
-        if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-            _run_sqlite_compat_migrations()
-            print("✓ SQLite migrations completed")
+        try:
+            print("✓ Testing database connection...")
+            db.engine.connect()
+            print("✓ Database connection successful")
+
+            print("✓ Creating database tables...")
+            db.create_all()
+            print("✓ Database tables created")
+
+            if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                print("✓ Running SQLite compatibility migrations...")
+                _run_sqlite_compat_migrations()
+                print("✓ Migrations complete")
+        except Exception as e:
+            print(f"❌ DATABASE ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
 
     print("✓ Registering blueprints")
     from .routes.admin import admin_bp

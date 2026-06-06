@@ -1,8 +1,8 @@
 """SMTP Testing and Diagnostics for Render Platform"""
 import os
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_login import login_required, current_user
-from ..utils.mail import send_html_email, validate_smtp_configured
+from ..utils.mail import send_html_email_async, validate_smtp_configured
 
 smtp_test_bp = Blueprint('smtp_test', __name__, url_prefix='/api/smtp-test')
 
@@ -56,32 +56,19 @@ def send_test_email():
             "success": False
         }), 400
 
-    try:
-        # Send test email
-        success = send_html_email(
-            recipient=test_email,
-            subject="Test Email from PT Tracker",
-            template_name="welcome",
-            trainer_id=current_user.id if not _is_admin() else None,
-            email_type="test",
-            client_name="Test Client",
-            gym_name="Test Gym",
-            trainer_name="Test Trainer",
-        )
+    send_html_email_async(
+        current_app._get_current_object(),
+        recipient=test_email,
+        subject="Test Email from PT Tracker",
+        template_name="welcome",
+        trainer_id=current_user.id if not _is_admin() else None,
+        email_type="test",
+        client_name="Test Client",
+        gym_name="Test Gym",
+        trainer_name="Test Trainer",
+    )
 
-        if success:
-            return jsonify({
-                "success": True,
-                "message": f"Test email sent successfully to {test_email}. Check your inbox."
-            })
-        else:
-            return jsonify({
-                "success": False,
-                "error": "Failed to send test email. Check server logs for details."
-            }), 500
-
-    except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Exception while sending test email: {str(e)}"
-        }), 500
+    return jsonify({
+        "success": True,
+        "message": f"Test email is being sent to {test_email}"
+    })

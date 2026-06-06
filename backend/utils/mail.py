@@ -108,8 +108,11 @@ def send_html_email_async(app, recipient, subject, template_name, **context):
     """Send HTML email asynchronously in a thread."""
 
     def _send():
-        with app.app_context():
-            send_html_email(recipient, subject, template_name, **context)
+        try:
+            with app.app_context():
+                send_html_email(recipient, subject, template_name, **context)
+        except:
+            pass
 
     thread = threading.Thread(target=_send)
     thread.daemon = True
