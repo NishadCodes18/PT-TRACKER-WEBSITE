@@ -17,6 +17,7 @@ from backend import create_app
 app = create_app()
 
 if __name__ == '__main__':
-    debug = os.environ.get('FLASK_DEBUG', '1') == '1'
-    port = int(os.environ.get('PORT', 5000))
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    # Get the port assigned by Render, default to 5000 if running locally
+    port = int(os.environ.get("PORT", 5000))
+    # host='0.0.0.0' tells Flask to listen to external traffic
+    app.run(host='0.0.0.0', port=port)
