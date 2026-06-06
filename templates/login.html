@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - NITRRO ZONE 360</title>
-    <meta name="description" content="Trainer login portal for NITRRO ZONE 360 Balewadi gym management system.">
+    <title>Login - Personal Training Gym Tracker</title>
+    <meta name="description" content="Professional personal training management system for fitness trainers in India.">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="auth-page">
     <div class="auth-container">
         <div class="auth-card">
             <div class="auth-header">
-                <div class="auth-logo">⚡</div>
-                <h1>NITRRO ZONE 360</h1>
-                <div class="gym-sub">Balewadi · Trainer Portal</div>
+                <div class="auth-logo">💪</div>
+                <h1>Personal Training Gym Tracker</h1>
+                <div class="gym-sub">Professional PT Management System</div>
                 <p>Sign in to manage your clients</p>
             </div>
             {% with messages = get_flashed_messages(with_categories=true) %}
@@ -24,6 +24,7 @@
                 {% endif %}
             {% endwith %}
             <form method="POST" action="{{ url_for('auth.login') }}" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required autocomplete="username" placeholder="Enter your username">
@@ -37,10 +38,17 @@
                         <input type="checkbox" name="remember"> Remember me
                     </label>
                 </div>
-                <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px; padding:14px;">⚡ Sign In</button>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px; padding:14px;">💪 Sign In</button>
             </form>
+            <div class="auth-links">
+                <a href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
+            </div>
+            <p class="auth-note">Repeated failed sign-ins will temporarily lock the account for extra protection. Keep your recovery email up to date for password resets.</p>
             <div class="auth-footer">
                 <p>New trainer? <a href="{{ url_for('auth.register') }}">Create an account</a></p>
+                <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-glow); color: var(--text-muted); font-size: 12px;">
+                    Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong>
+                </p>
             </div>
         </div>
     </div>

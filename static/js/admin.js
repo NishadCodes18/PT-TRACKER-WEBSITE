@@ -1,5 +1,22 @@
 const API_BASE = '';
 let trainersCache = [];
+
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.content : '';
+}
+
+async function apiFetch(url, opts = {}) {
+    const method = (opts.method || 'GET').toUpperCase();
+    const headers = { ...(opts.headers || {}) };
+    if (method !== 'GET' && method !== 'HEAD') {
+        headers['X-CSRFToken'] = getCsrfToken();
+        if (opts.body && !headers['Content-Type'] && !(opts.body instanceof FormData)) {
+            headers['Content-Type'] = 'application/json';
+        }
+    }
+    return fetch(url, { ...opts, headers, credentials: 'same-origin' });
+}
 function formatCurrency(amount) {
     return '₹' + parseFloat(amount || 0).toFixed(2);
 }
@@ -16,6 +33,15 @@ function escapeHtml(text) {
     div.textContent = text || '';
     return div.innerHTML;
 }
+function formatLockoutStatus(trainer) {
+    if (!trainer.is_locked || !trainer.lockout_remaining_seconds) {
+        if ((trainer.failed_login_attempts || 0) > 0) {
+            return `${trainer.failed_login_attempts} failed attempt(s)`;
+        }
+        return 'No lockout';
+    }
+    return `Locked for ${trainer.lockout_remaining_minutes} min`;
+}
 function renderTrainerManagement(trainers) {
     const container = document.getElementById('trainer-management-list');
     if (!container) return;
@@ -28,7 +54,7 @@ function renderTrainerManagement(trainers) {
             <form onsubmit="saveTrainer(event, ${t.id})" style="width:100%;">
                 <div class="client-info">
                     <h4>${escapeHtml(t.username)}</h4>
-                    <div class="client-meta">Clients: ${t.client_count ?? 0} · Shift: ${escapeHtml(t.shift_type || '8-hour')}</div>
+                    <div class="client-meta">Clients: ${t.client_count ?? 0} · Role: ${escapeHtml(t.role || 'trainer')} · ${escapeHtml(formatLockoutStatus(t))}</div>
                 </div>
                 <div class="admin-policy-grid">
                     <label>
@@ -40,12 +66,17 @@ function renderTrainerManagement(trainers) {
                         <input type="password" data-trainer-field="password" placeholder="Leave blank to keep current password">
                     </label>
                     <label>
-                        Shift Type
-                        <input type="text" data-trainer-field="shift_type" value="${escapeHtml(t.shift_type || '8-hour')}">
+                        Role
+                        <select data-trainer-field="role">
+                            <option value="trainer" ${t.role === 'trainer' ? 'selected' : ''}>Trainer</option>
+                            <option value="manager" ${t.role === 'manager' ? 'selected' : ''}>Manager</option>
+                            <option value="assistant" ${t.role === 'assistant' ? 'selected' : ''}>Assistant</option>
+                        </select>
                     </label>
                 </div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px;">
+                <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center;">
                     <button type="submit" class="btn btn-sm btn-primary">Save Trainer</button>
+                    ${t.is_locked ? `<button type="button" class="btn btn-sm btn-outline" onclick="unlockTrainer(${t.id}, ${JSON.stringify(t.username)})">Unlock</button>` : ''}
                     <button type="button" class="btn btn-sm btn-danger" onclick='deleteTrainer(${t.id}, ${JSON.stringify(t.username)})'>Delete</button>
                 </div>
             </form>
@@ -58,7 +89,8 @@ async function loadTrainersAndPolicies() {
         if (!response.ok) {
             throw new Error('Failed to load trainers');
         }
-        const trainers = await response.json();
+        const payload = await response.json();
+        const trainers = Array.isArray(payload) ? payload : (payload.trainers || []);
         trainersCache = trainers;
         renderTrainerManagement(trainers);
         renderPolicies(trainers);
@@ -119,9 +151,8 @@ async function saveCommissionPolicy(event, trainerId) {
         override_percent: form.querySelector('[data-field="override_percent"]').value,
     };
     try {
-        const response = await fetch(`${API_BASE}/api/admin/trainers/${trainerId}/commission-policy`, {
+        const response = await apiFetch(`${API_BASE}/api/admin/trainers/${trainerId}/commission-policy`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
         });
         const payload = await response.json();
@@ -147,12 +178,11 @@ async function createTrainer(event) {
     const payload = {
         username: document.getElementById('trainer-username').value.trim(),
         password: document.getElementById('trainer-password').value,
-        shift_type: document.getElementById('trainer-shift-type').value.trim() || '8-hour',
+        role: document.getElementById('trainer-role').value || 'trainer',
     };
     try {
-        const response = await fetch(`${API_BASE}/api/admin/trainers`, {
+        const response = await apiFetch(`${API_BASE}/api/admin/trainers`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         const data = await response.json();
@@ -161,7 +191,6 @@ async function createTrainer(event) {
             return;
         }
         document.getElementById('trainer-create-form').reset();
-        document.getElementById('trainer-shift-type').value = '8-hour';
         await Promise.all([loadTrainersAndPolicies(), loadPayouts()]);
     } catch (error) {
         console.error('Error creating trainer:', error);
@@ -174,15 +203,14 @@ async function saveTrainer(event, trainerId) {
     const payload = {
         username: form.querySelector('[data-trainer-field="username"]').value.trim(),
         password: form.querySelector('[data-trainer-field="password"]').value,
-        shift_type: form.querySelector('[data-trainer-field="shift_type"]').value.trim() || '8-hour',
+        role: form.querySelector('[data-trainer-field="role"]').value || 'trainer',
     };
     if (!payload.password) {
         delete payload.password;
     }
     try {
-        const response = await fetch(`${API_BASE}/api/admin/trainers/${trainerId}`, {
+        const response = await apiFetch(`${API_BASE}/api/admin/trainers/${trainerId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         const data = await response.json();
@@ -201,7 +229,7 @@ async function deleteTrainer(trainerId, username) {
         return;
     }
     try {
-        const response = await fetch(`${API_BASE}/api/admin/trainers/${trainerId}`, {
+        const response = await apiFetch(`${API_BASE}/api/admin/trainers/${trainerId}`, {
             method: 'DELETE',
         });
         const data = await response.json();
@@ -213,6 +241,25 @@ async function deleteTrainer(trainerId, username) {
     } catch (error) {
         console.error('Error deleting trainer:', error);
         alert('Failed to delete trainer');
+    }
+}
+async function unlockTrainer(trainerId, username) {
+    if (!confirm(`Unlock ${username}'s account now?`)) {
+        return;
+    }
+    try {
+        const response = await apiFetch(`${API_BASE}/api/admin/trainers/${trainerId}/unlock`, {
+            method: 'POST',
+        });
+        const data = await response.json();
+        if (!response.ok) {
+            alert(data.error || 'Failed to unlock trainer');
+            return;
+        }
+        await Promise.all([loadTrainersAndPolicies(), loadPayouts()]);
+    } catch (error) {
+        console.error('Error unlocking trainer:', error);
+        alert('Failed to unlock trainer');
     }
 }
 async function loadPayouts() {
@@ -258,9 +305,8 @@ async function sendAdminNotification(event) {
         payload.trainer_id = parseInt(trainerId, 10);
     }
     try {
-        const response = await fetch(`${API_BASE}/api/admin/notifications`, {
+        const response = await apiFetch(`${API_BASE}/api/admin/notifications`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         const data = await response.json();
@@ -301,6 +347,115 @@ async function loadNotificationHistory() {
         document.getElementById('admin-notification-history').innerHTML = '<p class="text-muted">Unable to load notifications</p>';
     }
 }
+// Email Logs Functions
+async function loadEmailStats() {
+    try {
+        const days = document.getElementById('email-days-filter').value;
+        const response = await fetch(`${API_BASE}/api/email-logs/stats?days=${days}`);
+        if (!response.ok) throw new Error('Failed to load email stats');
+
+        const stats = await response.json();
+        document.getElementById('stat-sent').textContent = stats.total_sent || 0;
+        document.getElementById('stat-failed').textContent = stats.total_failed || 0;
+        document.getElementById('stat-success-rate').textContent = `${stats.success_rate || 0}%`;
+    } catch (error) {
+        console.error('Error loading email stats:', error);
+    }
+}
+
+async function loadEmailLogs(page = 1) {
+    try {
+        const emailType = document.getElementById('email-type-filter').value;
+        const status = document.getElementById('email-status-filter').value;
+        const days = document.getElementById('email-days-filter').value;
+
+        const params = new URLSearchParams({ page, per_page: 20, days });
+        if (emailType) params.append('email_type', emailType);
+        if (status) params.append('status', status);
+
+        const response = await fetch(`${API_BASE}/api/email-logs?${params}`);
+        if (!response.ok) throw new Error('Failed to load email logs');
+
+        const data = await response.json();
+        const tbody = document.getElementById('email-logs-table');
+
+        if (!data.items || data.items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No email logs found</td></tr>';
+            document.getElementById('email-logs-pagination').innerHTML = '';
+            return;
+        }
+
+        tbody.innerHTML = data.items.map(log => `
+            <tr>
+                <td>${formatEmailDate(log.sent_at)}</td>
+                <td>
+                    <div><strong>${escapeHtml(log.recipient_name || 'N/A')}</strong></div>
+                    <div style="font-size:12px;color:#6c757d;">${escapeHtml(log.recipient_email)}</div>
+                </td>
+                <td>${escapeHtml(log.subject)}</td>
+                <td><span style="font-size:12px;padding:4px 8px;border-radius:4px;background:#e9ecef;">${escapeHtml(log.email_type || 'N/A')}</span></td>
+                <td>${getStatusBadge(log.status)}</td>
+            </tr>
+        `).join('');
+
+        renderEmailLogsPagination(data.pagination, page);
+        await loadEmailStats();
+    } catch (error) {
+        console.error('Error loading email logs:', error);
+        document.getElementById('email-logs-table').innerHTML = '<tr><td colspan="5" class="text-center text-muted">Unable to load email logs</td></tr>';
+    }
+}
+
+function formatEmailDate(isoString) {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
+
+    return date.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getStatusBadge(status) {
+    if (status === 'sent') {
+        return '<span style="padding:4px 12px;border-radius:12px;background:#d4edda;color:#155724;font-size:12px;font-weight:500;">✓ Sent</span>';
+    } else if (status === 'failed') {
+        return '<span style="padding:4px 12px;border-radius:12px;background:#f8d7da;color:#721c24;font-size:12px;font-weight:500;">✗ Failed</span>';
+    }
+    return '<span style="padding:4px 12px;border-radius:12px;background:#e9ecef;color:#495057;font-size:12px;">Unknown</span>';
+}
+
+function renderEmailLogsPagination(pagination, currentPage) {
+    const container = document.getElementById('email-logs-pagination');
+    if (!pagination || pagination.pages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = '<div style="display:flex;gap:5px;align-items:center;">';
+
+    if (pagination.has_prev) {
+        html += `<button onclick="loadEmailLogs(${currentPage - 1})" class="btn btn-sm btn-secondary">← Prev</button>`;
+    }
+
+    html += `<span style="padding:0 15px;color:#6c757d;">Page ${currentPage} of ${pagination.pages}</span>`;
+
+    if (pagination.has_next) {
+        html += `<button onclick="loadEmailLogs(${currentPage + 1})" class="btn btn-sm btn-secondary">Next →</button>`;
+    }
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    await Promise.all([loadTrainersAndPolicies(), loadPayouts(), loadNotificationHistory()]);
+    await Promise.all([loadTrainersAndPolicies(), loadPayouts(), loadNotificationHistory(), loadEmailLogs()]);
 });

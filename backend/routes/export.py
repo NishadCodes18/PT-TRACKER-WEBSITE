@@ -12,7 +12,8 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import os
-from ..models import Client, Payment, Expense, db
+from ..database import db
+from ..models import Client, Payment, Expense
 
 export_bp = Blueprint('export', __name__, url_prefix='/api/export')
 
@@ -23,6 +24,68 @@ def _is_authorized_for_client(client_id):
     if not client:
         return False
     return client.trainer_id == current_user.id or getattr(current_user, 'is_admin', False)
+
+
+@export_bp.route('/backup-json', methods=['GET'])
+@login_required
+def backup_json():
+    """Export account data as JSON for backup."""
+    clients_query = Client.query
+    payments_query = Payment.query
+    expenses_query = Expense.query
+
+    if not getattr(current_user, 'is_admin', False):
+        clients_query = clients_query.filter_by(trainer_id=current_user.id)
+        payments_query = payments_query.filter_by(trainer_id=current_user.id)
+        expenses_query = expenses_query.filter_by(trainer_id=current_user.id)
+
+    payload = {
+        'generated_at': datetime.utcnow().isoformat(),
+        'clients': [
+            {
+                'id': c.id,
+                'trainer_id': c.trainer_id,
+                'name': c.name,
+                'contact_number': c.contact_number,
+                'email': c.email,
+                'status': c.status,
+                'pt_tier': c.pt_tier,
+                'time_slot': c.time_slot,
+                'renewal_date': c.renewal_date.isoformat() if c.renewal_date else None,
+                'notes': c.notes,
+                'created_at': c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in clients_query.order_by(Client.created_at.desc()).all()
+        ],
+        'payments': [
+            {
+                'id': p.id,
+                'client_id': p.client_id,
+                'trainer_id': p.trainer_id,
+                'amount': float(p.amount),
+                'plan_type': p.plan_type,
+                'start_date': p.start_date.isoformat() if p.start_date else None,
+                'payment_date': p.payment_date.isoformat() if p.payment_date else None,
+                'description': p.description,
+                'created_at': p.created_at.isoformat() if p.created_at else None,
+            }
+            for p in payments_query.order_by(Payment.created_at.desc()).all()
+        ],
+        'expenses': [
+            {
+                'id': e.id,
+                'trainer_id': e.trainer_id,
+                'expense_name': e.expense_name,
+                'category': e.category,
+                'amount': float(e.amount),
+                'expense_date': e.expense_date.isoformat() if e.expense_date else None,
+                'created_at': e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in expenses_query.order_by(Expense.created_at.desc()).all()
+        ],
+    }
+
+    return jsonify(payload), 200
 
 
 @export_bp.route('/clients-excel', methods=['GET'])

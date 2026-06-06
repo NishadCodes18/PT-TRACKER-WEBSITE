@@ -1,215 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notification</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-        }
-        
-        .email-container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-        }
-        
-        .email-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px 20px;
-            text-align: center;
-            border-bottom: 4px solid #FFD700;
-        }
-        
-        .logo {
-            max-width: 120px;
-            height: auto;
-            margin-bottom: 15px;
-        }
-        
-        .gym-name {
-            font-size: 28px;
-            font-weight: bold;
-            margin: 10px 0;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .email-body {
-            padding: 40px 30px;
-        }
-        
-        .greeting {
-            font-size: 18px;
-            color: #333;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-        
-        .content {
-            color: #555;
-            line-height: 1.8;
-            font-size: 16px;
-            margin-bottom: 25px;
-        }
-        
-        .notification-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #667eea;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #667eea;
-        }
-        
-        .highlight-box {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            border-left: 4px solid #667eea;
-            padding: 20px;
-            margin: 25px 0;
-            border-radius: 5px;
-        }
-        
-        .cta-button {
-            display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white !important;
-            padding: 12px 35px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            margin: 20px 0;
-            transition: transform 0.2s;
-        }
-        
-        .cta-button:hover {
-            transform: scale(1.05);
-        }
-        
-        .secondary-button {
-            display: inline-block;
-            background: #f0f0f0;
-            color: #667eea !important;
-            padding: 10px 25px;
-            border-radius: 5px;
-            text-decoration: none;
-            font-weight: bold;
-            margin: 10px 10px 10px 0;
-            border: 1px solid #667eea;
-        }
-        
-        .divider {
-            border-top: 2px solid #eee;
-            margin: 25px 0;
-        }
-        
-        .email-footer {
-            background: #f8f9fa;
-            padding: 30px;
-            text-align: center;
-            border-top: 1px solid #eee;
-            color: #666;
-            font-size: 13px;
-        }
-        
-        .footer-links {
-            margin: 15px 0;
-        }
-        
-        .footer-links a {
-            color: #667eea;
-            text-decoration: none;
-            margin: 0 10px;
-        }
-        
-        @media only screen and (max-width: 600px) {
-            .email-container {
-                width: 100%;
-            }
-            
-            .email-body {
-                padding: 25px 15px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="email-container">
-        <div class="email-header">
-            {% if logo_url %}
-            <img src="{{ logo_url }}" alt="{{ gym_name }}" class="logo">
-            {% endif %}
-            <div class="gym-name">{{ gym_name }}</div>
-        </div>
-        
-        <div class="email-body">
-            {% if recipient_name %}
-            <div class="greeting">Hi {{ recipient_name }},</div>
-            {% else %}
-            <div class="greeting">Hello,</div>
-            {% endif %}
-            
-            {% if notification_title %}
-            <div class="notification-title">{{ notification_title }}</div>
-            {% endif %}
-            
-            {% if main_message %}
-            <div class="content">
-                {{ main_message }}
-            </div>
-            {% endif %}
-            
-            {% if highlight_content %}
-            <div class="highlight-box">
-                {{ highlight_content }}
-            </div>
-            {% endif %}
-            
-            {% if additional_details %}
-            <div class="content">
-                {{ additional_details }}
-            </div>
-            {% endif %}
-            
-            {% if action_url %}
-            <div style="text-align: center;">
-                <a href="{{ action_url }}" class="cta-button">{{ action_text or 'View Details' }}</a>
-                {% if secondary_url %}
-                <a href="{{ secondary_url }}" class="secondary-button">{{ secondary_text or 'Learn More' }}</a>
-                {% endif %}
-            </div>
-            {% endif %}
-            
-            {% if footer_message %}
-            <div class="content" style="margin-top: 30px; font-size: 14px; color: #777;">
-                {{ footer_message }}
-            </div>
-            {% endif %}
-        </div>
-        
-        <div class="email-footer">
-            <p>&copy; {{ year }} {{ gym_name }}. All rights reserved.</p>
-            <div class="footer-links">
-                <a href="#">Contact Support</a> | 
-                <a href="#">Privacy Policy</a> | 
-                <a href="#">Unsubscribe</a>
-            </div>
-            <p style="margin-top: 15px; color: #999;">
-                {{ support_email }}
-            </p>
-        </div>
-    </div>
-</body>
-</html>
+{% extends "emails/base.html" %}
+
+{% block email_content %}
+{% if recipient_name %}
+<div class="greeting">Hi {{ recipient_name }},</div>
+{% else %}
+<div class="greeting">Hello,</div>
+{% endif %}
+
+{% if notification_title %}
+<div class="content" style="font-size: 18px; font-weight: 700; color: #667eea; margin-bottom: 15px;">{{ notification_title }}</div>
+{% endif %}
+
+{% if main_message %}
+<div class="content">{{ main_message }}</div>
+{% endif %}
+
+{% if highlight_content %}
+<div class="highlight-box">{{ highlight_content }}</div>
+{% endif %}
+
+{% if additional_details %}
+<div class="content">{{ additional_details }}</div>
+{% endif %}
+
+{% if action_url %}
+<div style="text-align: center; margin: 25px 0;">
+    <a href="{{ action_url }}" class="cta-button">{{ action_text or 'View Details' }}</a>
+</div>
+{% endif %}
+
+{% if footer_message %}
+<div class="content" style="font-size: 14px; color: #777;">{{ footer_message }}</div>
+{% endif %}
+{% endblock %}

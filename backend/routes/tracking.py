@@ -1,15 +1,29 @@
 """
 Tracking routes for attendance, workouts, progress metrics, nutrition, and goals
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
+from werkzeug.utils import secure_filename
+import os
 from ..models import (
-    Client, Attendance, Workout, ProgressMetric, 
+    Client, Attendance, Workout, ProgressMetric, GalleryImage,
     Nutrition, Goal, db
 )
 
 tracking_bp = Blueprint('tracking', __name__, url_prefix='/api/tracking')
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_upload_folder():
+    """Get or create the uploads folder for progress images"""
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    upload_folder = os.path.join(root_dir, 'static', 'uploads', 'progress_images')
+    os.makedirs(upload_folder, exist_ok=True)
+    return upload_folder
 
 
 @tracking_bp.route('/attendance', methods=['POST'])
@@ -82,6 +96,38 @@ def get_attendance_history(client_id):
                 'notes': a.notes
             } for a in attendance_records]
         }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@tracking_bp.route('/attendance-calendar', methods=['GET'])
+@login_required
+def attendance_calendar():
+    """Calendar-ready attendance feed for all visible clients."""
+    try:
+        days = request.args.get('days', 30, type=int)
+        start_date = datetime.utcnow().date() - timedelta(days=max(days, 1))
+
+        query = db.session.query(Attendance, Client.name).join(Client, Client.id == Attendance.client_id).filter(Attendance.session_date >= start_date)
+        if not getattr(current_user, 'is_admin', False):
+            query = query.filter(Attendance.trainer_id == current_user.id)
+
+        records = query.order_by(Attendance.session_date.desc()).all()
+        return jsonify(
+            {
+                'events': [
+                    {
+                        'id': attendance.id,
+                        'client_id': attendance.client_id,
+                        'client_name': client_name,
+                        'date': attendance.session_date.isoformat(),
+                        'status': attendance.status,
+                        'duration_minutes': attendance.duration_minutes,
+                    }
+                    for attendance, client_name in records
+                ]
+            }
+        ), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -176,6 +222,103 @@ def manage_progress_metrics(client_id):
             })
         
         return jsonify({'client_id': client_id, 'metrics': grouped}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+
+@tracking_bp.route('/gallery/<int:client_id>', methods=['GET', 'POST'])
+@login_required
+def manage_gallery(client_id):
+    """Store and fetch progress photos for a client - file upload only."""
+    try:
+        client = Client.query.get(client_id)
+        if not client or (client.trainer_id != current_user.id and not getattr(current_user, 'is_admin', False)):
+            return jsonify({'error': 'Unauthorized'}), 403
+
+        if request.method == 'POST':
+            # Check if file is present in request
+            if 'image' not in request.files:
+                return jsonify({'error': 'No image file provided'}), 400
+
+            file = request.files['image']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+
+            if not allowed_file(file.filename):
+                return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+
+            # Generate secure filename
+            filename = secure_filename(file.filename)
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            unique_filename = f"client_{client_id}_{timestamp}_{filename}"
+
+            # Save file
+            upload_folder = get_upload_folder()
+            filepath = os.path.join(upload_folder, unique_filename)
+            file.save(filepath)
+
+            # Store relative path in database
+            relative_path = f"/static/uploads/progress_images/{unique_filename}"
+
+            caption = request.form.get('caption', '').strip()
+            upload_date = request.form.get('upload_date', datetime.utcnow().date().isoformat())
+
+            gallery_image = GalleryImage(
+                client_id=client_id,
+                trainer_id=current_user.id if not getattr(current_user, 'is_admin', False) else client.trainer_id,
+                image_path=relative_path,
+                caption=caption,
+                upload_date=datetime.strptime(upload_date, '%Y-%m-%d').date(),
+            )
+            db.session.add(gallery_image)
+            db.session.commit()
+            return jsonify({
+                'id': gallery_image.id,
+                'image_path': gallery_image.image_path,
+                'caption': gallery_image.caption
+            }), 201
+
+        # GET - retrieve images
+        images = (
+            GalleryImage.query.filter_by(client_id=client_id)
+            .order_by(GalleryImage.upload_date.desc())
+            .limit(100)
+            .all()
+        )
+        return jsonify(
+            {
+                'client_id': client_id,
+                'client_name': client.name,
+                'images': [
+                    {
+                        'id': img.id,
+                        'image_path': img.image_path,
+                        'caption': img.caption,
+                        'upload_date': img.upload_date.isoformat() if img.upload_date else None,
+                    }
+                    for img in images
+                ],
+            }
+        ), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@tracking_bp.route('/gallery/image/<int:image_id>', methods=['DELETE'])
+@login_required
+def delete_gallery_image(image_id):
+    """Delete a specific progress photo."""
+    try:
+        image = GalleryImage.query.get(image_id)
+        if not image:
+            return jsonify({'error': 'Image not found'}), 404
+            
+        client = Client.query.get(image.client_id)
+        if not client or (client.trainer_id != current_user.id and not getattr(current_user, 'is_admin', False)):
+            return jsonify({'error': 'Unauthorized'}), 403
+            
+        db.session.delete(image)
+        db.session.commit()
+        return '', 204
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

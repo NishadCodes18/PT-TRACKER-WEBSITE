@@ -288,19 +288,18 @@
             
             <div class="email-body">
                 {% block email_content %}{% endblock %}
+                {% block email_signature %}
+                {% include "emails/partials/signature.html" %}
+                {% endblock %}
             </div>
             
             <div class="email-footer">
                 <p style="margin-bottom: 12px;">&copy; {{ year }} {{ gym_name }}. All rights reserved.</p>
                 <div class="footer-divider"></div>
-                <div class="footer-links">
-                    <a href="#">Contact Us</a>
-                    <a href="#">Privacy Policy</a>
-                    <a href="#">FAQ</a>
-                </div>
-                <p style="margin-top: 15px; color: #aaa;">
+                <p style="margin-top: 12px; color: #aaa;">
                     {{ support_email }}<br>
-                    <span class="text-muted">Professional PT Management System</span>
+                    <span class="text-muted">Professional PT Management System</span><br>
+                    <span class="text-muted" style="margin-top: 8px; display: inline-block;">Software developed by {{ app_developer | default('NISHAD PATIL') }}</span>
                 </p>
             </div>
         </div>

@@ -8,8 +8,9 @@ import pyotp
 import qrcode
 from io import BytesIO
 import base64
-from ..models import Trainer, TwoFactorAuth, db
-from werkzeug.security import generate_password_hash
+from email_validator import EmailNotValidError, validate_email
+from ..database import db
+from ..models import Trainer, TwoFactorAuth
 
 security_bp = Blueprint('security', __name__, url_prefix='/api/security')
 
@@ -202,6 +203,9 @@ def logout_all_sessions():
 def manage_profile():
     """Get or update trainer profile"""
     try:
+        if getattr(current_user, 'is_admin', False):
+            return jsonify({'error': 'Trainer profile settings are not available for admin accounts'}), 403
+
         if request.method == 'GET':
             return jsonify({
                 'id': current_user.id,
@@ -215,9 +219,25 @@ def manage_profile():
             }), 200
         
         # PUT - update profile
-        data = request.json
+        data = request.json or {}
         if 'email' in data:
-            current_user.email = data['email']
+            raw_email = (data.get('email') or '').strip()
+            if raw_email:
+                try:
+                    normalized_email = validate_email(raw_email, check_deliverability=False).normalized
+                except EmailNotValidError:
+                    return jsonify({'error': 'Enter a valid recovery email address'}), 400
+
+                existing = Trainer.query.filter(
+                    Trainer.email == normalized_email,
+                    Trainer.id != current_user.id,
+                ).first()
+                if existing:
+                    return jsonify({'error': 'That recovery email is already used by another trainer'}), 400
+
+                current_user.email = normalized_email
+            else:
+                current_user.email = None
         if 'phone' in data:
             current_user.phone = data['phone']
         

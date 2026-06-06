@@ -20,13 +20,26 @@ def _is_hidden_trainer(trainer):
 
 
 def _serialize_trainer(trainer):
+    locked_until = trainer.locked_until.isoformat() if trainer.locked_until else None
+    is_locked = bool(trainer.locked_until and trainer.locked_until > datetime.utcnow())
+    remaining_seconds = 0
+    if is_locked:
+        remaining_seconds = max(0, int((trainer.locked_until - datetime.utcnow()).total_seconds()))
     return {
         'id': trainer.id,
         'username': trainer.username,
-        'shift_type': trainer.shift_type,
+        'role': trainer.role,
+        'email': trainer.email,
+        'is_active': trainer.is_active,
         'created_at': trainer.created_at.isoformat() if trainer.created_at else None,
         'client_count': len(trainer.clients),
         'commission_policy': _resolve_commission(trainer),
+        'failed_login_attempts': trainer.failed_login_attempts or 0,
+        'last_failed_login': trainer.last_failed_login.isoformat() if trainer.last_failed_login else None,
+        'locked_until': locked_until,
+        'is_locked': is_locked,
+        'lockout_remaining_seconds': remaining_seconds,
+        'lockout_remaining_minutes': max(1, (remaining_seconds + 59) // 60) if remaining_seconds else 0,
     }
 def _month_start(date_obj):
     return date_obj.replace(day=1)
@@ -113,7 +126,7 @@ def create_trainer():
     data = request.get_json() or {}
     username = (data.get('username') or '').strip()
     password = data.get('password') or ''
-    shift_type = (data.get('shift_type') or '8-hour').strip() or '8-hour'
+    role = (data.get('role') or 'trainer').strip()
     if not username:
         return jsonify({'error': 'Username is required'}), 400
     if username == ADMIN_DATA_OWNER_USERNAME:
@@ -122,7 +135,7 @@ def create_trainer():
         return jsonify({'error': 'Password must be at least 6 characters'}), 400
     if Trainer.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already taken'}), 400
-    trainer = Trainer(username=username, shift_type=shift_type)
+    trainer = Trainer(username=username, role=role)
     trainer.set_password(password)
     db.session.add(trainer)
     db.session.commit()
@@ -153,8 +166,8 @@ def update_trainer(trainer_id):
         if len(password) < 6:
             return jsonify({'error': 'Password must be at least 6 characters'}), 400
         trainer.set_password(password)
-    if 'shift_type' in data:
-        trainer.shift_type = (data.get('shift_type') or '8-hour').strip() or '8-hour'
+    if 'role' in data:
+        trainer.role = (data.get('role') or 'trainer').strip()
     db.session.commit()
     return jsonify(_serialize_trainer(trainer))
 
@@ -210,6 +223,22 @@ def update_commission_policy(trainer_id):
     db.session.add(policy)
     db.session.commit()
     return jsonify({'message': 'Commission policy updated', 'commission_policy': _resolve_commission(trainer)})
+
+
+@admin_bp.route('/trainers/<int:trainer_id>/unlock', methods=['POST'])
+@login_required
+def unlock_trainer_account(trainer_id):
+    if not _admin_required():
+        return jsonify({'error': 'Admin access required'}), 403
+
+    trainer = Trainer.query.get_or_404(trainer_id)
+    if trainer.username == ADMIN_DATA_OWNER_USERNAME:
+        return jsonify({'error': 'Cannot modify hidden system trainer'}), 400
+
+    trainer.reset_login_lockout()
+    db.session.commit()
+
+    return jsonify({'message': 'Trainer account unlocked', 'trainer': _serialize_trainer(trainer)})
 @admin_bp.route('/notifications', methods=['POST'])
 @login_required
 def create_notification():

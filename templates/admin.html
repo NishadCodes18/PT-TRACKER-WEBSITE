@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - NITRRO ZONE 360</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
     <nav class="navbar">
         <div class="nav-brand">
             <div class="nav-brand-icon">🛡</div>
@@ -45,8 +47,12 @@
                             <input type="password" id="trainer-password" required placeholder="Minimum 6 characters">
                         </label>
                         <label>
-                            Shift Type
-                            <input type="text" id="trainer-shift-type" value="8-hour" placeholder="e.g., 8-hour">
+                            Role
+                            <select id="trainer-role">
+                                <option value="trainer">Trainer</option>
+                                <option value="manager">Manager</option>
+                                <option value="assistant">Assistant</option>
+                            </select>
                         </label>
                     </div>
                     <div style="margin-top:12px;">
@@ -107,6 +113,70 @@
             <div class="card-body">
                 <div id="admin-notification-history">
                     <p class="text-muted">Loading...</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-header">
+                <h2>📧 Email Logs</h2>
+            </div>
+            <div class="card-body">
+                <div id="email-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+                    <div style="padding:15px;background:#f8f9fa;border-radius:8px;">
+                        <div style="font-size:12px;color:#6c757d;margin-bottom:5px;">Total Sent</div>
+                        <div style="font-size:24px;font-weight:600;color:#28a745;" id="stat-sent">-</div>
+                    </div>
+                    <div style="padding:15px;background:#f8f9fa;border-radius:8px;">
+                        <div style="font-size:12px;color:#6c757d;margin-bottom:5px;">Total Failed</div>
+                        <div style="font-size:24px;font-weight:600;color:#dc3545;" id="stat-failed">-</div>
+                    </div>
+                    <div style="padding:15px;background:#f8f9fa;border-radius:8px;">
+                        <div style="font-size:12px;color:#6c757d;margin-bottom:5px;">Success Rate</div>
+                        <div style="font-size:24px;font-weight:600;color:#17a2b8;" id="stat-success-rate">-</div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;">
+                    <select id="email-type-filter" onchange="loadEmailLogs(1)" style="flex:1;min-width:150px;">
+                        <option value="">All Email Types</option>
+                        <option value="renewal_reminder">Renewal Reminder</option>
+                        <option value="password_reset">Password Reset</option>
+                        <option value="welcome">Welcome</option>
+                        <option value="payment_confirmation">Payment Confirmation</option>
+                    </select>
+
+                    <select id="email-status-filter" onchange="loadEmailLogs(1)" style="flex:1;min-width:150px;">
+                        <option value="">All Status</option>
+                        <option value="sent">Sent</option>
+                        <option value="failed">Failed</option>
+                    </select>
+
+                    <select id="email-days-filter" onchange="loadEmailLogs(1)" style="flex:1;min-width:150px;">
+                        <option value="7">Last 7 Days</option>
+                        <option value="30" selected>Last 30 Days</option>
+                        <option value="90">Last 90 Days</option>
+                    </select>
+                </div>
+
+                <div style="overflow-x:auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Recipient</th>
+                                <th>Subject</th>
+                                <th>Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="email-logs-table">
+                            <tr><td colspan="5" class="text-center text-muted">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="email-logs-pagination" style="margin-top:15px;display:flex;justify-content:center;gap:10px;align-items:center;">
                 </div>
             </div>
         </section>

@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, jsonify, abort, redirect, url_for
 from flask_login import login_required, current_user
 from sqlalchemy import func
 from datetime import datetime, timedelta
-from ..models import Client, Payment, CommissionPolicy
+from ..models import Client, Payment, Expense, Trainer, CommissionPolicy, ADMIN_DATA_OWNER_USERNAME
 from ..database import db
 dashboard_bp = Blueprint('dashboard', __name__)
 @dashboard_bp.route('/')
@@ -11,6 +11,15 @@ def main():
     """Render main dashboard"""
     is_admin = getattr(current_user, 'is_admin', False)
     return render_template('dashboard.html', is_admin=is_admin)
+
+
+@dashboard_bp.route('/profile')
+@login_required
+def profile():
+    """Render the dedicated trainer profile page."""
+    if getattr(current_user, 'is_admin', False):
+        return redirect(url_for('dashboard.main'))
+    return render_template('profile.html')
 @dashboard_bp.route('/admin')
 @login_required
 def admin_panel():
@@ -35,7 +44,7 @@ def get_stats():
     week_from_now = today + timedelta(days=7)
     upcoming_renewals_query = Client.query.filter(
         Client.status == 'ongoing',
-        Client.renewal_date >= today,
+        Client.renewal_date.isnot(None),
         Client.renewal_date <= week_from_now
     )
     if not is_admin:
@@ -117,3 +126,111 @@ def get_stats():
             ).order_by(Client.renewal_date).all()
         ]
     })
+
+
+@dashboard_bp.route('/api/insights')
+@login_required
+def get_insights():
+    """Advanced insights for analytics cards and trend charts."""
+    today = datetime.utcnow().date()
+    months = 6
+    start_date = today - timedelta(days=30 * months)
+    is_admin = getattr(current_user, 'is_admin', False)
+
+    payment_query = Payment.query.filter(Payment.payment_date >= start_date)
+    expense_query = Expense.query.filter(Expense.expense_date >= start_date)
+    client_query = Client.query
+    if not is_admin:
+        payment_query = payment_query.filter(Payment.trainer_id == current_user.id)
+        expense_query = expense_query.filter(Expense.trainer_id == current_user.id)
+        client_query = client_query.filter(Client.trainer_id == current_user.id)
+
+    total_revenue = float(payment_query.with_entities(func.sum(Payment.amount)).scalar() or 0)
+    total_expenses = float(expense_query.with_entities(func.sum(Expense.amount)).scalar() or 0)
+    net_profit = round(total_revenue - total_expenses, 2)
+
+    total_clients = client_query.count()
+    active_clients = client_query.filter(Client.status == 'ongoing').count()
+    retention_rate = round((active_clients / total_clients) * 100, 2) if total_clients else 0
+
+    at_risk_threshold = today + timedelta(days=7)
+    at_risk_clients = client_query.filter(
+        Client.status == 'ongoing',
+        Client.renewal_date.isnot(None),
+        Client.renewal_date <= at_risk_threshold,
+    ).count()
+
+    timeline_rows = (
+        payment_query.with_entities(Payment.payment_date, func.sum(Payment.amount).label('amount'))
+        .group_by(Payment.payment_date)
+        .order_by(Payment.payment_date)
+        .all()
+    )
+    timeline = [{'date': d.isoformat(), 'amount': float(a or 0)} for d, a in timeline_rows]
+
+    expense_rows = (
+        expense_query.with_entities(Expense.category, func.sum(Expense.amount).label('amount'))
+        .group_by(Expense.category)
+        .order_by(func.sum(Expense.amount).desc())
+        .all()
+    )
+    expense_breakdown = [{'category': c or 'other', 'amount': float(a or 0)} for c, a in expense_rows]
+
+    clv_rows = (
+        db.session.query(
+            Client.id,
+            Client.name,
+            func.sum(Payment.amount).label('lifetime_value'),
+        )
+        .join(Payment, Payment.client_id == Client.id)
+        .filter(Client.trainer_id == current_user.id if not is_admin else Client.id.isnot(None))
+        .group_by(Client.id, Client.name)
+        .order_by(func.sum(Payment.amount).desc())
+        .limit(5)
+        .all()
+    )
+    top_clients = [
+        {
+            'client_id': cid,
+            'client_name': name,
+            'lifetime_value': float(value or 0),
+        }
+        for cid, name, value in clv_rows
+    ]
+
+    trainer_performance = []
+    if is_admin:
+        trainer_rows = (
+            db.session.query(
+                Trainer.id,
+                Trainer.username,
+                func.sum(Payment.amount).label('revenue'),
+            )
+            .outerjoin(Payment, Payment.trainer_id == Trainer.id)
+            .filter(Trainer.username != ADMIN_DATA_OWNER_USERNAME)
+            .group_by(Trainer.id, Trainer.username)
+            .order_by(func.sum(Payment.amount).desc())
+            .all()
+        )
+        trainer_performance = [
+            {
+                'trainer_id': tid,
+                'trainer_username': username,
+                'revenue': float(revenue or 0),
+            }
+            for tid, username, revenue in trainer_rows
+        ]
+
+    return jsonify(
+        {
+            'revenue': total_revenue,
+            'expenses': total_expenses,
+            'net_profit': net_profit,
+            'retention_rate': retention_rate,
+            'at_risk_clients': at_risk_clients,
+            'timeline': timeline,
+            'expense_breakdown': expense_breakdown,
+            'top_clients_by_clv': top_clients,
+            'trainer_performance': trainer_performance,
+        }
+    )

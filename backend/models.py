@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from .database import db
@@ -11,23 +11,28 @@ class AdminUser(UserMixin):
     def get_id(self):
         return self.id
 class Trainer(UserMixin, db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Trainer user model for authentication"""
     __tablename__ = 'trainers'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
-    shift_type = db.Column(db.String(20), default='8-hour')
-    role = db.Column(db.String(50), default='trainer')  # admin, manager, trainer, assistant
+    role = db.Column(db.String(50), default='trainer')
     email = db.Column(db.String(120), unique=True, nullable=True)
     phone = db.Column(db.String(20))
     is_active = db.Column(db.Boolean, default=True)
     last_login = db.Column(db.DateTime)
+    failed_login_attempts = db.Column(db.Integer, nullable=False, default=0)
+    locked_until = db.Column(db.DateTime)
+    last_failed_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     clients = db.relationship('Client', backref='trainer', lazy=True, cascade='all, delete-orphan')
     payments = db.relationship('Payment', backref='trainer', lazy=True, cascade='all, delete-orphan')
     expenses = db.relationship('Expense', backref='trainer', lazy=True, cascade='all, delete-orphan')
     commission_policy = db.relationship('CommissionPolicy', backref='trainer', uselist=False, lazy=True, cascade='all, delete-orphan')
     notifications = db.relationship('Notification', backref='trainer', lazy=True, cascade='all, delete-orphan')
+    email_logs = db.relationship('EmailLog', backref='trainer', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         """Hash and set password"""
@@ -35,6 +40,20 @@ class Trainer(UserMixin, db.Model):
     def check_password(self, password):
         """Verify password against hash"""
         return check_password_hash(self.password_hash, password)
+
+    def reset_login_lockout(self):
+        self.failed_login_attempts = 0
+        self.locked_until = None
+        self.last_failed_login = None
+
+    def record_failed_login(self, lockout_threshold=5, lockout_minutes=15):
+        self.failed_login_attempts = (self.failed_login_attempts or 0) + 1
+        self.last_failed_login = datetime.utcnow()
+        if self.failed_login_attempts >= lockout_threshold:
+            self.locked_until = datetime.utcnow() + timedelta(minutes=lockout_minutes)
+
+    def is_login_locked(self):
+        return bool(self.locked_until and self.locked_until > datetime.utcnow())
     
     def has_permission(self, permission):
         """Check if trainer has a specific permission"""
@@ -46,6 +65,8 @@ class Trainer(UserMixin, db.Model):
         }
         return permission in role_permissions.get(self.role, [])
 class Client(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Client model for tracking PT clients"""
     __tablename__ = 'clients'
     id = db.Column(db.Integer, primary_key=True)
@@ -54,20 +75,25 @@ class Client(db.Model):
     contact_number = db.Column(db.String(20))
     email = db.Column(db.String(120), nullable=True)
     send_email_reminders = db.Column(db.Boolean, default=False)
-    status = db.Column(db.String(20), default='ongoing')  
-    pt_tier = db.Column(db.String(20), default='Silver')  
+    status = db.Column(db.String(20), default='ongoing')
+    pt_tier = db.Column(db.String(20), default='Silver')
     time_slot = db.Column(db.String(50), nullable=True)
+    gym_name = db.Column(db.String(100), nullable=True)
     renewal_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     @property
     def expected_amount(self):
         """Get expected payment amount based on tier (Indian pricing)"""
-        tier_amounts = {'Silver': 8000, 'Gold': 12000, 'Platinum': 15000}
-        return tier_amounts.get(self.pt_tier, 8000)
+        try:
+            return float(self.pt_tier)
+        except (ValueError, TypeError):
+            return 5000
     payments = db.relationship('Payment', backref='client', lazy=True, cascade='all, delete-orphan')
 
 class Payment(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Payment model for tracking income"""
     __tablename__ = 'payments'
     id = db.Column(db.Integer, primary_key=True)
@@ -77,10 +103,15 @@ class Payment(db.Model):
     start_date = db.Column(db.Date, nullable=True)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     payment_date = db.Column(db.Date, nullable=False)
+    payment_mode = db.Column(db.String(20), default='cash')
+    gym_payment_done = db.Column(db.Boolean, default=False)
+    gym_payment_amount = db.Column(db.Numeric(10, 2), nullable=True)
     description = db.Column(db.String(200))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Expense(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Expense model for tracking business costs"""
     __tablename__ = 'expenses'
     id = db.Column(db.Integer, primary_key=True)
@@ -91,6 +122,8 @@ class Expense(db.Model):
     category = db.Column(db.String(50), default='other')  
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 class CommissionPolicy(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Trainer payout policy configured by admin."""
     __tablename__ = 'commission_policies'
     id = db.Column(db.Integer, primary_key=True)
@@ -102,6 +135,8 @@ class CommissionPolicy(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 class Notification(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Admin notifications for trainers (or broadcast when trainer_id is null)."""
     __tablename__ = 'notifications'
     id = db.Column(db.Integer, primary_key=True)
@@ -111,6 +146,8 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 class Attendance(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track client attendance for training sessions"""
     __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
@@ -123,6 +160,8 @@ class Attendance(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
 class Workout(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Log workout details and exercises"""
     __tablename__ = 'workouts'
     id = db.Column(db.Integer, primary_key=True)
@@ -138,6 +177,8 @@ class Workout(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class ProgressMetric(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track client progress metrics (weight, measurements, etc.)"""
     __tablename__ = 'progress_metrics'
     id = db.Column(db.Integer, primary_key=True)
@@ -151,6 +192,8 @@ class ProgressMetric(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class GalleryImage(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Store progress photos for clients"""
     __tablename__ = 'gallery_images'
     id = db.Column(db.Integer, primary_key=True)
@@ -162,6 +205,8 @@ class GalleryImage(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Nutrition(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track client nutrition/meals"""
     __tablename__ = 'nutrition'
     id = db.Column(db.Integer, primary_key=True)
@@ -178,6 +223,8 @@ class Nutrition(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Goal(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track fitness goals for clients"""
     __tablename__ = 'goals'
     id = db.Column(db.Integer, primary_key=True)
@@ -194,6 +241,8 @@ class Goal(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Badge(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Gamification badges for achievements"""
     __tablename__ = 'badges'
     id = db.Column(db.Integer, primary_key=True)
@@ -204,6 +253,8 @@ class Badge(db.Model):
     earned_date = db.Column(db.DateTime, default=datetime.utcnow)
 
 class ClientReferral(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track client referrals"""
     __tablename__ = 'client_referrals'
     id = db.Column(db.Integer, primary_key=True)
@@ -216,6 +267,8 @@ class ClientReferral(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class AuditLog(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Track all user actions for audit trail"""
     __tablename__ = 'audit_logs'
     id = db.Column(db.Integer, primary_key=True)
@@ -229,6 +282,8 @@ class AuditLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class SystemSettings(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Store system-wide configuration"""
     __tablename__ = 'system_settings'
     id = db.Column(db.Integer, primary_key=True)
@@ -239,6 +294,8 @@ class SystemSettings(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class TrainerRole(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Define trainer roles for RBAC"""
     __tablename__ = 'trainer_roles'
     id = db.Column(db.Integer, primary_key=True)
@@ -251,6 +308,8 @@ class TrainerRole(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class IntegrationToken(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Store OAuth tokens for external integrations"""
     __tablename__ = 'integration_tokens'
     id = db.Column(db.Integer, primary_key=True)
@@ -264,13 +323,61 @@ class IntegrationToken(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class TwoFactorAuth(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
     """Store 2FA settings for users"""
     __tablename__ = 'two_factor_auth'
     id = db.Column(db.Integer, primary_key=True)
     trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False, unique=True)
     is_enabled = db.Column(db.Boolean, default=False)
-    secret_key = db.Column(db.String(100))  # For TOTP
-    backup_codes = db.Column(db.Text)  # JSON list of backup codes
+    secret_key = db.Column(db.String(100))
+    backup_codes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class PasswordResetOTP(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    """Store one-time passwords for email-based password resets."""
+    __tablename__ = 'password_reset_otps'
+    id = db.Column(db.Integer, primary_key=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False, unique=True)
+    otp_hash = db.Column(db.String(256), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    verified_at = db.Column(db.DateTime)
+    consumed_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def store_otp(self, otp, expires_minutes=10):
+        self.otp_hash = generate_password_hash(str(otp), method='pbkdf2:sha256')
+        self.expires_at = datetime.utcnow() + timedelta(minutes=expires_minutes)
+        self.attempts = 0
+        self.verified_at = None
+        self.consumed_at = None
+
+    def is_expired(self):
+        return datetime.utcnow() > self.expires_at
+
+    def can_retry(self, max_attempts=5):
+        return self.attempts < max_attempts
+
+
+class EmailLog(db.Model):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+    """Store email sending logs for audit trail"""
+    __tablename__ = 'email_logs'
+    id = db.Column(db.Integer, primary_key=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    recipient_email = db.Column(db.String(120), nullable=False)
+    recipient_name = db.Column(db.String(100))
+    subject = db.Column(db.String(255), nullable=False)
+    email_type = db.Column(db.String(50))
+    status = db.Column(db.String(20), default='sent')
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=True)
+    error_message = db.Column(db.Text)
+    sent_at = db.Column(db.DateTime, default=datetime.utcnow)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 def get_or_create_default_admin_trainer():
@@ -278,7 +385,7 @@ def get_or_create_default_admin_trainer():
     trainer = Trainer.query.filter_by(username=ADMIN_DATA_OWNER_USERNAME).first()
     if trainer:
         return trainer
-    trainer = Trainer(username=ADMIN_DATA_OWNER_USERNAME)
+    trainer = Trainer(username=ADMIN_DATA_OWNER_USERNAME)  # type: ignore
     trainer.set_password('admin-owner-not-for-login')
     db.session.add(trainer)
     db.session.commit()

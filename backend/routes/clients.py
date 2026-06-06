@@ -1,54 +1,67 @@
-from flask import Blueprint, request, jsonify
-from flask_login import login_required, current_user
 from datetime import datetime
+
+from email_validator import EmailNotValidError, validate_email
+from flask import Blueprint, jsonify, request
+from flask_login import current_user, login_required
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
-from ..models import Client, Trainer, get_or_create_default_admin_trainer, ADMIN_DATA_OWNER_USERNAME
+
 from ..database import db
-clients_bp = Blueprint('clients', __name__, url_prefix='/api/clients')
+from ..models import ADMIN_DATA_OWNER_USERNAME, Client, Trainer, get_or_create_default_admin_trainer
+from ..utils.client_emails import send_client_welcome_email
+from ..utils.indian_helpers import normalize_phone_number, validate_indian_phone
+
+clients_bp = Blueprint("clients", __name__, url_prefix="/api/clients")
 
 
 def _is_admin():
-    return getattr(current_user, 'is_admin', False)
+    return getattr(current_user, "is_admin", False)
 
 
 def _trainer_display_name(trainer):
     if not trainer:
         return None
     if trainer.username == ADMIN_DATA_OWNER_USERNAME:
-        return 'Admin'
+        return "Admin"
     return trainer.username
 
 
 def _serialize_client(client):
     return {
-        'id': client.id,
-        'trainer_id': client.trainer_id,
-        'trainer_username': _trainer_display_name(client.trainer),
-        'name': client.name,
-        'contact_number': client.contact_number or 'N/A',
-        'status': client.status,
-        'pt_tier': client.pt_tier,
-        'time_slot': client.time_slot,
-        'email': client.email,
-        'send_email_reminders': client.send_email_reminders,
-        'expected_amount': client.expected_amount,
-        'renewal_date': client.renewal_date.isoformat() if client.renewal_date else None,
-        'notes': client.notes,
-        'is_overdue': bool(client.renewal_date and client.renewal_date < datetime.utcnow().date() and client.status == 'ongoing'),
+        "id": client.id,
+        "trainer_id": client.trainer_id,
+        "trainer_username": _trainer_display_name(client.trainer),
+        "name": client.name,
+        "contact_number": client.contact_number or "N/A",
+        "status": client.status,
+        "pt_tier": client.pt_tier,
+        "time_slot": client.time_slot,
+        "gym_name": client.gym_name,
+        "email": client.email,
+        "send_email_reminders": client.send_email_reminders,
+        "expected_amount": client.expected_amount,
+        "renewal_date": client.renewal_date.isoformat() if client.renewal_date else None,
+        "notes": client.notes,
+        "is_overdue": bool(
+            client.renewal_date
+            and client.renewal_date < datetime.utcnow().date()
+            and client.status == "ongoing"
+        ),
     }
 
 
 def _resolve_trainer(requested_trainer_id=None):
-    if requested_trainer_id in (None, ''):
+    if requested_trainer_id in (None, ""):
         trainer = Trainer.query.filter(Trainer.username != ADMIN_DATA_OWNER_USERNAME).order_by(Trainer.id).first()
         if trainer:
-            return None
-        trainer = get_or_create_default_admin_trainer()
-        return trainer
+            return trainer
+        return get_or_create_default_admin_trainer()
+
     try:
         requested_trainer_id = int(requested_trainer_id)
     except (TypeError, ValueError):
         return None
+
     trainer = Trainer.query.get(requested_trainer_id)
     if not trainer or trainer.username == ADMIN_DATA_OWNER_USERNAME:
         return None
@@ -59,44 +72,134 @@ def _client_query():
     return Client.query.options(joinedload(Client.trainer))
 
 
-@clients_bp.route('', methods=['GET'])
+def _apply_client_filters(query, *, status_filter=None, search_query=None, tier=None, overdue_only=False):
+    if status_filter in ("ongoing", "lost"):
+        query = query.filter(Client.status == status_filter)
+
+    if tier:
+        query = query.filter(Client.pt_tier == tier)
+
+    if search_query:
+        q = f"%{search_query.strip()}%"
+        query = query.filter(
+            or_(
+                Client.name.ilike(q),
+                Client.contact_number.ilike(q),
+                Client.email.ilike(q),
+                Client.notes.ilike(q),
+            )
+        )
+
+    if overdue_only:
+        today = datetime.utcnow().date()
+        query = query.filter(Client.status == "ongoing", Client.renewal_date.isnot(None), Client.renewal_date < today)
+
+    return query
+
+
+def _apply_sort(query, sort_by, sort_order):
+    sort_order = "desc" if sort_order == "desc" else "asc"
+    col = {
+        "name": Client.name,
+        "renewal_date": Client.renewal_date,
+        "created_at": Client.created_at,
+    }.get(sort_by, Client.name)
+
+    return query.order_by(col.desc() if sort_order == "desc" else col.asc())
+
+
+@clients_bp.route("", methods=["GET"])
 @login_required
 def get_clients():
-    """Get all clients for the current trainer or all clients for admins."""
-    status_filter = request.args.get('status')
+    """Get clients with optional server-side filtering and pagination."""
     is_admin = _is_admin()
     query = _client_query()
     if not is_admin:
-        query = query.filter_by(trainer_id=current_user.id)
-    if status_filter:
-        query = query.filter_by(status=status_filter)
-    clients = query.order_by(Client.name).all()
-    return jsonify([_serialize_client(c) for c in clients])
-@clients_bp.route('', methods=['POST'])
+        query = query.filter(Client.trainer_id == current_user.id)
+
+    query = _apply_client_filters(
+        query,
+        status_filter=request.args.get("status"),
+        search_query=request.args.get("q", ""),
+        tier=request.args.get("pt_tier"),
+        overdue_only=(request.args.get("overdue") == "1"),
+    )
+    query = _apply_sort(query, request.args.get("sort_by", "name"), request.args.get("sort_order", "asc"))
+
+    paginated = request.args.get("paginated", "1") != "0"
+    if not paginated:
+        clients = query.all()
+        return jsonify([_serialize_client(c) for c in clients])
+
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = request.args.get("per_page", 20, type=int)
+    per_page = min(max(per_page, 5), 100)
+
+    total = query.count()
+    items = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return jsonify(
+        {
+            "items": [_serialize_client(c) for c in items],
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": max((total + per_page - 1) // per_page, 1),
+                "has_next": (page * per_page) < total,
+                "has_prev": page > 1,
+            },
+        }
+    )
+
+
+@clients_bp.route("", methods=["POST"])
 @login_required
 def create_client():
-    """Create a new client"""
     data = request.get_json() or {}
     is_admin = _is_admin()
-    name = data.get('name', '').strip()
-    contact_number = data.get('contact_number', '').strip()
-    status = data.get('status', 'ongoing').strip().lower()
-    pt_tier = data.get('pt_tier', 'Silver')
-    time_slot = data.get('time_slot', '').strip()
-    email = data.get('email', '').strip()
-    send_email_reminders = bool(data.get('send_email_reminders', False))
-    notes = data.get('notes', '').strip()
+
+    name = data.get("name", "").strip()
+    contact_number = data.get("contact_number", "").strip()
+    status = data.get("status", "ongoing").strip().lower()
+    pt_tier = data.get("pt_tier", "Silver")
+    time_slot = data.get("time_slot", "").strip()
+    gym_name = data.get("gym_name", "").strip()
+    email = data.get("email", "").strip()
+    send_email_reminders = bool(data.get("send_email_reminders", False))
+    notes = data.get("notes", "").strip()
+    renewal_date = None
+
     if not name:
-        return jsonify({'error': 'Name is required'}), 400
-    if status not in ('ongoing', 'lost'):
-        return jsonify({'error': 'Status must be ongoing or lost'}), 400
-    trainer = None
+        return jsonify({"error": "Name is required"}), 400
+
+    if email:
+        try:
+            email = validate_email(email, check_deliverability=False).normalized
+        except EmailNotValidError:
+            return jsonify({"error": "Enter a valid email address"}), 400
+
+    if data.get("renewal_date") not in (None, ""):
+        try:
+            renewal_date = datetime.strptime(data["renewal_date"], "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"error": "Invalid renewal date format"}), 400
+    if status not in ("ongoing", "lost"):
+        return jsonify({"error": "Status must be ongoing or lost"}), 400
+
+    # Validate and normalize Indian phone number
+    if contact_number:
+        if not validate_indian_phone(contact_number):
+            return jsonify({"error": "Invalid Indian phone number format. Please use 10-digit number."}), 400
+        contact_number = normalize_phone_number(contact_number)
+
     if is_admin:
-        trainer = _resolve_trainer(data.get('trainer_id'))
+        trainer = _resolve_trainer(data.get("trainer_id"))
         if trainer is None:
-            return jsonify({'error': 'Invalid trainer_id'}), 400
+            return jsonify({"error": "Invalid trainer_id"}), 400
     else:
         trainer = current_user
+
     client = Client(
         trainer=trainer,
         name=name,
@@ -104,165 +207,151 @@ def create_client():
         status=status,
         pt_tier=pt_tier,
         time_slot=time_slot,
+        gym_name=gym_name,
         email=email,
         send_email_reminders=send_email_reminders,
-        notes=notes
+        renewal_date=renewal_date,
+        notes=notes,
     )
+
     db.session.add(client)
     db.session.commit()
-    return jsonify(_serialize_client(client)), 201
-@clients_bp.route('/<int:client_id>', methods=['GET'])
+
+    welcome_email_sent = False
+    if client.email:
+        welcome_email_sent = send_client_welcome_email(client)
+
+    payload = _serialize_client(client)
+    payload["welcome_email_sent"] = welcome_email_sent
+    return jsonify(payload), 201
+
+
+@clients_bp.route("/<int:client_id>", methods=["GET"])
 @login_required
 def get_client(client_id):
-    """Get a specific client"""
     client_query = _client_query().filter_by(id=client_id)
     if not _is_admin():
         client_query = client_query.filter_by(trainer_id=current_user.id)
     client = client_query.first_or_404()
     return jsonify(_serialize_client(client))
-@clients_bp.route('/<int:client_id>', methods=['PUT'])
+
+
+@clients_bp.route("/<int:client_id>", methods=["PUT"])
 @login_required
 def update_client(client_id):
-    """Update an existing client"""
     client_query = _client_query().filter_by(id=client_id)
     is_admin = _is_admin()
     if not is_admin:
         client_query = client_query.filter_by(trainer_id=current_user.id)
     client = client_query.first_or_404()
+
     data = request.get_json() or {}
-    if 'name' in data:
-        client.name = data['name'].strip()
-    if 'contact_number' in data:
-        client.contact_number = data['contact_number'].strip()
-    if 'status' in data:
-        status = str(data['status']).strip().lower()
-        if status not in ('ongoing', 'lost'):
-            return jsonify({'error': 'Status must be ongoing or lost'}), 400
+
+    if "name" in data:
+        name = str(data["name"]).strip()
+        if not name:
+            return jsonify({"error": "Name is required"}), 400
+        client.name = name
+    if "contact_number" in data:
+        contact_number = str(data["contact_number"] or "").strip()
+        if contact_number and not validate_indian_phone(contact_number):
+            return jsonify({"error": "Invalid Indian phone number format"}), 400
+        client.contact_number = normalize_phone_number(contact_number) if contact_number else None
+    if "status" in data:
+        status = str(data["status"]).strip().lower()
+        if status not in ("ongoing", "lost"):
+            return jsonify({"error": "Status must be ongoing or lost"}), 400
         client.status = status
-    if 'pt_tier' in data:
-        client.pt_tier = data['pt_tier']
-    if 'time_slot' in data:
-        client.time_slot = data['time_slot'].strip()
-    if 'email' in data:
-        client.email = data['email'].strip()
-    if 'send_email_reminders' in data:
-        client.send_email_reminders = bool(data['send_email_reminders'])
-    if 'renewal_date' in data:
-        try:
-            client.renewal_date = datetime.strptime(data['renewal_date'], '%Y-%m-%d').date()
-        except ValueError:
-            return jsonify({'error': 'Invalid date format'}), 400
-    if 'notes' in data:
-        client.notes = data['notes'].strip()
-    if 'trainer_id' in data:
+    if "pt_tier" in data:
+        client.pt_tier = data["pt_tier"]
+    if "time_slot" in data:
+        client.time_slot = str(data["time_slot"] or "").strip()
+    if "gym_name" in data:
+        client.gym_name = str(data["gym_name"] or "").strip()
+    if "email" in data:
+        client.email = str(data["email"] or "").strip()
+    if "send_email_reminders" in data:
+        client.send_email_reminders = bool(data["send_email_reminders"])
+    if "renewal_date" in data:
+        if data["renewal_date"] in (None, ""):
+            client.renewal_date = None
+        else:
+            try:
+                client.renewal_date = datetime.strptime(data["renewal_date"], "%Y-%m-%d").date()
+            except ValueError:
+                return jsonify({"error": "Invalid date format"}), 400
+    if "notes" in data:
+        client.notes = str(data["notes"] or "").strip()
+    if "trainer_id" in data:
         if not is_admin:
-            return jsonify({'error': 'Only admins can reassign clients'}), 403
-        trainer = _resolve_trainer(data.get('trainer_id'))
+            return jsonify({"error": "Only admins can reassign clients"}), 403
+        trainer = _resolve_trainer(data.get("trainer_id"))
         if trainer is None:
-            return jsonify({'error': 'Invalid trainer_id'}), 400
+            return jsonify({"error": "Invalid trainer_id"}), 400
         client.trainer = trainer
+
     db.session.commit()
     return jsonify(_serialize_client(client))
-@clients_bp.route('/<int:client_id>', methods=['DELETE'])
+
+
+@clients_bp.route("/<int:client_id>", methods=["DELETE"])
 @login_required
 def delete_client(client_id):
-    """Delete a client"""
     if not _is_admin():
-        return jsonify({'error': 'Only admins can permanently delete clients'}), 403
+        return jsonify({"error": "Only admins can permanently delete clients"}), 403
+
     client = Client.query.filter_by(id=client_id).first_or_404()
     db.session.delete(client)
     db.session.commit()
-    return '', 204
+    return "", 204
 
 
-@clients_bp.route('/search/advanced', methods=['POST'])
+@clients_bp.route("/search/advanced", methods=["POST"])
 @login_required
 def advanced_search():
-    """Advanced client search with multiple filters"""
-    try:
-        filters = request.json or {}
-        is_admin = _is_admin()
-        
-        query = _client_query()
-        if not is_admin:
-            query = query.filter_by(trainer_id=current_user.id)
-        
-        # Search by name (case insensitive)
-        if filters.get('name'):
-            query = query.filter(Client.name.ilike(f"%{filters['name']}%"))
-        
-        # Filter by status
-        if filters.get('status'):
-            query = query.filter_by(status=filters['status'])
-        
-        # Filter by PT tier
-        if filters.get('pt_tier'):
-            query = query.filter_by(pt_tier=filters['pt_tier'])
-        
-        # Filter by time slot
-        if filters.get('time_slot'):
-            query = query.filter_by(time_slot=filters['time_slot'])
-        
-        # Search by email
-        if filters.get('email'):
-            query = query.filter(Client.email.ilike(f"%{filters['email']}%"))
-        
-        # Search by phone
-        if filters.get('contact_number'):
-            query = query.filter(Client.contact_number.ilike(f"%{filters['contact_number']}%"))
-        
-        # Filter by renewal date range
-        if filters.get('renewal_date_from'):
-            try:
-                start_date = datetime.strptime(filters['renewal_date_from'], '%Y-%m-%d').date()
-                query = query.filter(Client.renewal_date >= start_date)
-            except ValueError:
-                pass
-        
-        if filters.get('renewal_date_to'):
-            try:
-                end_date = datetime.strptime(filters['renewal_date_to'], '%Y-%m-%d').date()
-                query = query.filter(Client.renewal_date <= end_date)
-            except ValueError:
-                pass
-        
-        # Filter by overdue clients
-        if filters.get('show_overdue'):
-            today = datetime.utcnow().date()
-            query = query.filter(
-                Client.renewal_date < today,
-                Client.status == 'ongoing'
-            )
-        
-        # Sort options
-        sort_by = filters.get('sort_by', 'name')  # name, renewal_date, created_at
-        sort_order = filters.get('sort_order', 'asc')  # asc, desc
-        
-        if sort_by == 'renewal_date':
-            if sort_order == 'desc':
-                query = query.order_by(Client.renewal_date.desc())
-            else:
-                query = query.order_by(Client.renewal_date.asc())
-        elif sort_by == 'created_at':
-            if sort_order == 'desc':
-                query = query.order_by(Client.created_at.desc())
-            else:
-                query = query.order_by(Client.created_at.asc())
-        else:
-            query = query.order_by(Client.name.asc())
-        
-        # Pagination
-        page = filters.get('page', 1, type=int)
-        per_page = filters.get('per_page', 20, type=int)
-        
-        paginated = query.paginate(page=page, per_page=per_page)
-        
-        return jsonify({
-            'total': paginated.total,
-            'pages': paginated.pages,
-            'current_page': page,
-            'per_page': per_page,
-            'clients': [_serialize_client(c) for c in paginated.items]
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
+    """Advanced search retained for compatibility with older UI clients."""
+    filters = request.json or {}
+    query = _client_query()
+
+    if not _is_admin():
+        query = query.filter(Client.trainer_id == current_user.id)
+
+    query = _apply_client_filters(
+        query,
+        status_filter=filters.get("status"),
+        search_query=filters.get("name") or filters.get("email") or filters.get("contact_number"),
+        tier=filters.get("pt_tier"),
+        overdue_only=bool(filters.get("show_overdue")),
+    )
+
+    if filters.get("renewal_date_from"):
+        try:
+            start_date = datetime.strptime(filters["renewal_date_from"], "%Y-%m-%d").date()
+            query = query.filter(Client.renewal_date >= start_date)
+        except ValueError:
+            pass
+
+    if filters.get("renewal_date_to"):
+        try:
+            end_date = datetime.strptime(filters["renewal_date_to"], "%Y-%m-%d").date()
+            query = query.filter(Client.renewal_date <= end_date)
+        except ValueError:
+            pass
+
+    query = _apply_sort(query, filters.get("sort_by", "name"), filters.get("sort_order", "asc"))
+
+    page = max(int(filters.get("page", 1) or 1), 1)
+    per_page = min(max(int(filters.get("per_page", 20) or 20), 5), 100)
+
+    total = query.count()
+    items = query.offset((page - 1) * per_page).limit(per_page).all()
+
+    return jsonify(
+        {
+            "total": total,
+            "pages": max((total + per_page - 1) // per_page, 1),
+            "current_page": page,
+            "per_page": per_page,
+            "clients": [_serialize_client(c) for c in items],
+        }
+    )

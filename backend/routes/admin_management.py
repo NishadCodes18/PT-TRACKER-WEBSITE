@@ -8,7 +8,7 @@ from ..models import (
     Trainer, TrainerRole, AuditLog, SystemSettings, db
 )
 
-admin_bp = Blueprint('admin_management', __name__, url_prefix='/api/admin')
+admin_bp = Blueprint('admin_management', __name__, url_prefix='/api/admin_management')
 
 
 def _require_admin():

@@ -4,11 +4,14 @@
 <div class="greeting">Hi {{ client_name }},</div>
 
 <div class="content">
-    <p>Your PT tier renewal date is coming up soon! 📅</p>
+    <p>Your PT tier renewal date is coming up soon at <strong>{{ gym_name }}</strong>.</p>
+    {% if trainer_name %}
+    <p>Your trainer <strong>{{ trainer_name }}</strong> will be happy to help you renew on time.</p>
+    {% endif %}
 </div>
 
 <div class="highlight-box" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe0b2 100%); border-left-color: #ffc107;">
-    <strong style="color: #ff9800;">⏰ Renewal Notice</strong>
+    <strong style="color: #ff9800;">Renewal Notice</strong>
     <div class="info-row">
         <span class="info-label">Current Tier:</span>
         <span class="info-value">{{ pt_tier }}</span>
@@ -17,32 +20,15 @@
         <span class="info-label">Renewal Date:</span>
         <span class="info-value">{{ renewal_date }}</span>
     </div>
+    {% if days_remaining is defined %}
     <div class="info-row">
         <span class="info-label">Days Left:</span>
         <span class="info-value">{{ days_remaining }} days</span>
     </div>
+    {% endif %}
 </div>
 
 <div class="content">
     <p>To continue your training sessions without interruption, please renew your PT tier on or before the renewal date.</p>
-</div>
-
-<div style="text-align: center; margin: 30px 0;">
-    <a href="{{ dashboard_url }}" class="cta-button">📱 Renew Now</a>
-</div>
-
-<div class="content" style="background: #f0f7ff; padding: 15px; border-radius: 8px; border-left: 4px solid #0066cc;">
-    <p><strong>Quick Renewal Options:</strong></p>
-    <ul style="margin-left: 20px; margin-top: 10px;">
-        <li>Log in to your dashboard to renew online</li>
-        <li>Contact us for automatic renewal setup</li>
-        <li>Call {{ support_phone }} for assistance</li>
-    </ul>
-</div>
-
-<div class="divider"></div>
-
-<div class="content">
-    <p style="color: #999; font-size: 13px;">If you have any questions about your renewal, please don't hesitate to reach out to us at {{ support_email }}.</p>
 </div>
 {% endblock %}

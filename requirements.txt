@@ -2,6 +2,7 @@ Flask==3.0.0
 Flask-SQLAlchemy==3.1.1
 Flask-Login==0.6.3
 Flask-WTF==1.2.1
+Flask-Limiter==3.5.0
 Werkzeug==3.0.1
 python-dotenv==1.0.0
 email-validator==2.1.0
@@ -13,3 +14,5 @@ pyotp==2.9.0
 qrcode==7.3.1
 python-dateutil==2.8.2
 google-auth==2.25.2
+gunicorn==21.2.0
+pyopenssl==24.0.0

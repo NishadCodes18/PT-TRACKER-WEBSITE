@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import jsonify, request
 from flask_login import current_user
-from .models import AuditLog, db
+from ..models import AuditLog
+from ..database import db
 
 
 def log_action(action, resource_type=None, resource_id=None, details=None):
