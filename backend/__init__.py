@@ -50,12 +50,25 @@ def create_app(config_class=Config):
     from .routes.payments import payments_bp
     from .routes.admin import admin_bp
     from .routes.reminders import reminders_bp
+    from .routes.tracking import tracking_bp
+    from .routes.analytics import analytics_bp
+    from .routes.export import export_bp
+    from .routes.admin_management import admin_bp as admin_mgmt_bp
+    from .routes.gamification import gamification_bp
+    from .routes.security import security_bp
+    
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(clients_bp)
     app.register_blueprint(payments_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(reminders_bp)
+    app.register_blueprint(tracking_bp)
+    app.register_blueprint(analytics_bp)
+    app.register_blueprint(export_bp)
+    app.register_blueprint(admin_mgmt_bp)
+    app.register_blueprint(gamification_bp)
+    app.register_blueprint(security_bp)
     @app.route('/')
     def index():
         return redirect(url_for('dashboard.main'))

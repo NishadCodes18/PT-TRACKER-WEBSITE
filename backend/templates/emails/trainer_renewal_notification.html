@@ -1,0 +1,49 @@
+{% extends "emails/base.html" %}
+
+{% block email_content %}
+<div class="greeting">Hi {{ trainer_name }},</div>
+
+<div class="content">
+    <p>An automated renewal reminder has been sent to your client <strong>{{ client_name }}</strong> on behalf of <strong>{{ gym_name }}</strong>.</p>
+</div>
+
+<div class="highlight-box" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left-color: #3b82f6;">
+    <strong style="color: #1e40af; font-size: 15px;">Client Details</strong>
+    <div style="margin-top: 15px;">
+        <div class="info-row">
+            <span class="info-label">Gym:</span>
+            <span class="info-value">{{ gym_name }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Name:</span>
+            <span class="info-value">{{ client_name }}</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Renewal Date:</span>
+            <span class="info-value">{{ renewal_date }}</span>
+        </div>
+        {% if contact_number %}
+        <div class="info-row">
+            <span class="info-label">Contact:</span>
+            <span class="info-value">{{ contact_number }}</span>
+        </div>
+        {% endif %}
+        <div class="info-row">
+            <span class="info-label">Email:</span>
+            <span class="info-value">{{ client_email }}</span>
+        </div>
+    </div>
+</div>
+
+<div class="content">
+    <p>Please follow up with them during their next session to secure their renewal.</p>
+</div>
+{% endblock %}
+
+{% block email_signature %}
+<div class="divider"></div>
+<div class="content" style="font-size: 14px; color: #666;">
+    <p style="margin-bottom: 5px;"><strong>Best regards,</strong></p>
+    <p style="color: #999; margin-bottom: 0;">{{ gym_name }}</p>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile - Personal Training Gym Tracker</title>
+    <meta name="description" content="Update your recovery email for password reset OTPs.">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <div class="nav-brand-icon">👤</div>
+            <div class="nav-brand-text">
+                <span class="nav-brand-name">Profile</span>
+                <span class="nav-brand-loc">Recovery Email Settings</span>
+            </div>
+        </div>
+        <div class="nav-user">
+            <span class="nav-user-name">{{ current_user.username }}</span>
+            <a href="{{ url_for('dashboard.main') }}" class="btn btn-sm btn-outline">Back to Dashboard</a>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-secondary">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="card">
+            <div class="card-header">
+                <h2>👤 Profile & Recovery Email</h2>
+            </div>
+            <div class="card-body">
+                <p class="text-muted" style="margin-bottom:14px; max-width:720px;">Keep a working recovery email on file so password reset OTPs can reach you securely.</p>
+                <form id="profile-form" onsubmit="saveProfile(event)" style="display:grid; gap:14px; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); align-items:end;">
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="profile-username">Username</label>
+                        <input type="text" id="profile-username" value="{{ current_user.username }}" disabled>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;">
+                        <label for="profile-email">Recovery Email</label>
+                        <input type="email" id="profile-email" value="{{ current_user.email or '' }}" placeholder="Enter your recovery email" autocomplete="email">
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <button type="submit" class="btn btn-primary">Save Email</button>
+                        <span id="profile-status" class="text-muted" style="font-size:13px;">{% if current_user.email %}Saved: {{ current_user.email }}{% else %}No recovery email set yet{% endif %}</span>
+                    </div>
+                </form>
+                <p class="auth-note" style="margin-top:16px;">This address is used for OTP-based password recovery and should stay accessible.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

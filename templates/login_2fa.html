@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Authentication</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">🔐</div>
+                <h1>Two-Factor Authentication</h1>
+                <p>Enter the 6-digit code from your authenticator app for <strong>{{ trainer.username }}</strong></p>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST" action="{{ url_for('auth.login_2fa') }}" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="code">Authentication code</label>
+                    <input type="text" id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code" placeholder="000000">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Verify &amp; Sign In</button>
+            </form>
+            <div class="auth-links">
+                <a href="{{ url_for('auth.login') }}">← Back to login</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -173,3 +173,96 @@ def delete_client(client_id):
     db.session.delete(client)
     db.session.commit()
     return '', 204
+
+
+@clients_bp.route('/search/advanced', methods=['POST'])
+@login_required
+def advanced_search():
+    """Advanced client search with multiple filters"""
+    try:
+        filters = request.json or {}
+        is_admin = _is_admin()
+        
+        query = _client_query()
+        if not is_admin:
+            query = query.filter_by(trainer_id=current_user.id)
+        
+        # Search by name (case insensitive)
+        if filters.get('name'):
+            query = query.filter(Client.name.ilike(f"%{filters['name']}%"))
+        
+        # Filter by status
+        if filters.get('status'):
+            query = query.filter_by(status=filters['status'])
+        
+        # Filter by PT tier
+        if filters.get('pt_tier'):
+            query = query.filter_by(pt_tier=filters['pt_tier'])
+        
+        # Filter by time slot
+        if filters.get('time_slot'):
+            query = query.filter_by(time_slot=filters['time_slot'])
+        
+        # Search by email
+        if filters.get('email'):
+            query = query.filter(Client.email.ilike(f"%{filters['email']}%"))
+        
+        # Search by phone
+        if filters.get('contact_number'):
+            query = query.filter(Client.contact_number.ilike(f"%{filters['contact_number']}%"))
+        
+        # Filter by renewal date range
+        if filters.get('renewal_date_from'):
+            try:
+                start_date = datetime.strptime(filters['renewal_date_from'], '%Y-%m-%d').date()
+                query = query.filter(Client.renewal_date >= start_date)
+            except ValueError:
+                pass
+        
+        if filters.get('renewal_date_to'):
+            try:
+                end_date = datetime.strptime(filters['renewal_date_to'], '%Y-%m-%d').date()
+                query = query.filter(Client.renewal_date <= end_date)
+            except ValueError:
+                pass
+        
+        # Filter by overdue clients
+        if filters.get('show_overdue'):
+            today = datetime.utcnow().date()
+            query = query.filter(
+                Client.renewal_date < today,
+                Client.status == 'ongoing'
+            )
+        
+        # Sort options
+        sort_by = filters.get('sort_by', 'name')  # name, renewal_date, created_at
+        sort_order = filters.get('sort_order', 'asc')  # asc, desc
+        
+        if sort_by == 'renewal_date':
+            if sort_order == 'desc':
+                query = query.order_by(Client.renewal_date.desc())
+            else:
+                query = query.order_by(Client.renewal_date.asc())
+        elif sort_by == 'created_at':
+            if sort_order == 'desc':
+                query = query.order_by(Client.created_at.desc())
+            else:
+                query = query.order_by(Client.created_at.asc())
+        else:
+            query = query.order_by(Client.name.asc())
+        
+        # Pagination
+        page = filters.get('page', 1, type=int)
+        per_page = filters.get('per_page', 20, type=int)
+        
+        paginated = query.paginate(page=page, per_page=per_page)
+        
+        return jsonify({
+            'total': paginated.total,
+            'pages': paginated.pages,
+            'current_page': page,
+            'per_page': per_page,
+            'clients': [_serialize_client(c) for c in paginated.items]
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400

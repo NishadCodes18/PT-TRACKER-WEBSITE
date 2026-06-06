@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP - Personal Training Gym Tracker</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">📩</div>
+                <h1>Verify OTP</h1>
+                <div class="gym-sub">Code sent to your email</div>
+                <p>We sent a 6-digit code to {{ trainer.email }}.</p>
+            </div>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="POST" action="{{ url_for('auth.verify_reset_otp') }}" class="auth-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="form-group">
+                    <label for="otp">One-Time Code</label>
+                    <input type="text" id="otp" name="otp" required inputmode="numeric" maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code" placeholder="Enter 6-digit OTP">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px; padding:14px;">Verify Code</button>
+            </form>
+            <div class="auth-links">
+                <a href="{{ url_for('auth.forgot_password') }}">Send a new OTP</a>
+                <span class="auth-link-sep">|</span>
+                <a href="{{ url_for('auth.login') }}">Back to sign in</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

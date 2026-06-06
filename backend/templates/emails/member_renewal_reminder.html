@@ -1,0 +1,28 @@
+{% extends "emails/base.html" %}
+
+{% block email_content %}
+<div class="greeting">Hi {{ client_name }},</div>
+
+<div class="content">
+    <p>Congratulations on the progress you've made so far! This is a reminder from <strong>{{ gym_name }}</strong> regarding your Personal Training membership.</p>
+    <p>Your trainer <strong>{{ trainer_name }}</strong> wanted to make sure you are aware that your renewal is coming up.</p>
+</div>
+
+<div class="highlight-box" style="text-align:center; background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left-color: #f59e0b;">
+    <strong style="color: #b45309; font-size: 15px;">Renewal Due Date</strong>
+    <div style="font-size: 28px; font-weight: 800; color: #92400e; margin: 8px 0 4px;">{{ renewal_date }}</div>
+    <div style="font-size: 13px; color: #92400e;">Your PT plan renewal is coming up</div>
+</div>
+
+<div class="content">
+    <p>To continue achieving your fitness goals without any interruption to your training sessions, please arrange for your renewal with <strong>{{ trainer_name }}</strong> soon.</p>
+</div>
+
+<div class="warning-box">
+    If you have already processed your renewal with your trainer, please disregard this email.
+</div>
+
+<div class="content">
+    <p>Keep up the great work!</p>
+</div>
+{% endblock %}
