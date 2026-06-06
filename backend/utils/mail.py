@@ -47,6 +47,8 @@ def send_html_email(
         # 2. Get Config
         host = current_app.config.get('SMTP_SERVER', 'smtp.gmail.com')
         port = int(current_app.config.get('SMTP_PORT', 587))
+        use_ssl = current_app.config.get('SMTP_USE_SSL', False)
+        use_tls = current_app.config.get('SMTP_USE_TLS', True)
         user = current_app.config.get('SMTP_USER')
         password = current_app.config.get('SMTP_PASSWORD')
 
@@ -55,13 +57,33 @@ def send_html_email(
             return False
 
         # 3. Secure Connection & Send
-        with smtplib.SMTP(host, port, timeout=30) as server:
-            server.set_debuglevel(0)
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(user, password)
-            server.send_message(msg)
+        try:
+            if use_ssl:
+                # Use SMTP_SSL for port 465
+                import smtplib
+                with smtplib.SMTP_SSL(host, port, timeout=15) as server:
+                    server.set_debuglevel(0)
+                    server.login(user, password)
+                    server.send_message(msg)
+            else:
+                # Use SMTP with STARTTLS for port 587
+                with smtplib.SMTP(host, port, timeout=15) as server:
+                    server.set_debuglevel(0)
+                    server.ehlo()
+                    if use_tls and server.has_extn('STARTTLS'):
+                        server.starttls()
+                        server.ehlo()
+                    server.login(user, password)
+                    server.send_message(msg)
+        except smtplib.SMTPServerDisconnected as e:
+            print(f"DEBUG: SMTP server disconnected: {str(e)}")
+            raise Exception(f"SMTP server disconnected. Check network/firewall on Render: {str(e)}")
+        except smtplib.SMTPAuthenticationError as e:
+            print(f"DEBUG: SMTP auth failed: {str(e)}")
+            raise Exception(f"SMTP authentication failed. Check SMTP_USER and SMTP_PASSWORD: {str(e)}")
+        except Exception as e:
+            print(f"DEBUG: SMTP connection error: {str(e)}")
+            raise
 
         # 4. Log Success
         if trainer_id:

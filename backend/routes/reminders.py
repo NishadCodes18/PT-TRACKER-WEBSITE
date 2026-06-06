@@ -17,6 +17,8 @@ def _smtp_validation_error():
 
     host = current_app.config.get('SMTP_SERVER') or os.environ.get('SMTP_SERVER')
     port = current_app.config.get('SMTP_PORT') or 587
+    use_ssl = current_app.config.get('SMTP_USE_SSL', False)
+    use_tls = current_app.config.get('SMTP_USE_TLS', True)
     user = current_app.config.get('SMTP_USER') or os.environ.get('SMTP_USER')
     password = current_app.config.get('SMTP_PASSWORD') or os.environ.get('SMTP_PASSWORD')
 
@@ -24,18 +26,58 @@ def _smtp_validation_error():
         return 'SMTP config missing. Check SMTP_SERVER, SMTP_USER, and SMTP_PASSWORD in .env.'
 
     try:
-        with smtplib.SMTP(host, int(port), timeout=20) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(user, password)
+        if use_ssl:
+            # Use SMTP_SSL for port 465
+            with smtplib.SMTP_SSL(host, int(port), timeout=10) as server:
+                server.login(user, password)
+        else:
+            # Use SMTP with STARTTLS for port 587
+            with smtplib.SMTP(host, int(port), timeout=10) as server:
+                server.ehlo()
+                if use_tls:
+                    server.starttls()
+                    server.ehlo()
+                server.login(user, password)
         return None
     except SMTPAuthenticationError:
         return 'Gmail rejected the login. Use a Google App Password for SMTP_PASSWORD.'
+    except smtplib.SMTPServerDisconnected:
+        return 'SMTP server disconnected. Check firewall/network settings on Render.'
     except SMTPException as e:
         return f'SMTP error: {e}'
     except Exception as e:
         return f'Unable to reach SMTP server: {e}'
+
+
+@reminders_bp.route('/test-smtp', methods=['GET'])
+@login_required
+def test_smtp():
+    """Test SMTP connectivity (for debugging on Render)."""
+    import socket
+    from flask import current_app
+
+    try:
+        host = current_app.config.get('SMTP_SERVER', 'smtp.gmail.com')
+        port = int(current_app.config.get('SMTP_PORT', 587))
+
+        # Test DNS resolution
+        ip = socket.gethostbyname(host)
+
+        # Test connection
+        with smtplib.SMTP(host, port, timeout=10) as server:
+            server.ehlo()
+            response = server.ehlo()[0]
+
+        return api_success(
+            message='SMTP server is reachable',
+            data={'host': host, 'port': port, 'ip': ip, 'ehlo_code': response}
+        )
+    except socket.gaierror as e:
+        return api_error(f'DNS resolution failed for {host}: {e}', code='dns_error', status=500)
+    except smtplib.SMTPException as e:
+        return api_error(f'SMTP error: {e}', code='smtp_error', status=500)
+    except Exception as e:
+        return api_error(f'Connection failed: {e}', code='connection_error', status=500)
 
 
 @reminders_bp.route('/send', methods=['POST'])

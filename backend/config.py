@@ -62,7 +62,8 @@ class Config:
     # --- EMAIL SETTINGS ---
     SMTP_SERVER = _env('SMTP_SERVER', 'smtp.gmail.com')
     SMTP_PORT = int(_env('SMTP_PORT', 587, strip=True))
-    SMTP_USE_TLS = _env_bool('SMTP_USE_TLS', True) # Added this to force TLS security
+    SMTP_USE_TLS = _env_bool('SMTP_USE_TLS', True)
+    SMTP_USE_SSL = _env_bool('SMTP_USE_SSL', False)  # Use SSL instead of TLS (port 465)
     SMTP_USER = _env('SMTP_USER')
     SMTP_PASSWORD = _env('SMTP_PASSWORD', remove_spaces=True)
     
