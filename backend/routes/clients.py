@@ -305,16 +305,56 @@ def update_client(client_id):
 @clients_bp.route("/<int:client_id>", methods=["DELETE"])
 @login_required
 def delete_client(client_id):
-    client_query = Client.query.filter_by(id=client_id)
+    try:
+        client_query = Client.query.filter_by(id=client_id)
 
-    # If not admin, restrict to own clients only
-    if not _is_admin():
-        client_query = client_query.filter_by(trainer_id=current_user.id)
+        # If not admin, restrict to own clients only
+        if not _is_admin():
+            client_query = client_query.filter_by(trainer_id=current_user.id)
 
-    client = client_query.first_or_404()
-    db.session.delete(client)
-    db.session.commit()
-    return "", 204
+        client = client_query.first_or_404()
+
+        # Manually delete related records that might not cascade properly
+        from ..models import (
+            Payment, EmailLog, ClientReferral,
+            Attendance, Workout, ProgressMetric, GalleryImage,
+            Nutrition, Goal, Badge
+        )
+
+        # Delete referrals where this client is the referrer
+        ClientReferral.query.filter_by(referrer_id=client_id).delete(synchronize_session=False)
+
+        # Update referrals where this client was referred (set to NULL)
+        ClientReferral.query.filter_by(referred_client_id=client_id).update({'referred_client_id': None}, synchronize_session=False)
+
+        # Delete gamification
+        Badge.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+        Goal.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+        # Delete tracking records
+        Nutrition.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+        GalleryImage.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+        ProgressMetric.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+        Workout.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+        Attendance.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+        # Delete financial records
+        Payment.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+        # Delete email logs
+        EmailLog.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+        # Now delete the client
+        db.session.delete(client)
+        db.session.commit()
+
+        return "", 204
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error deleting client {client_id}: {error_details}")
+        return jsonify({"error": f"Failed to delete client: {str(e)}"}), 500
 
 
 @clients_bp.route("/search/advanced", methods=["POST"])

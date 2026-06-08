@@ -111,7 +111,7 @@ def dispatch_renewal_reminders(
         clients_to_email = [client]
         respect_opt_in = False
     elif send_type == 'due_closest':
-        cutoff = datetime.utcnow().date() + timedelta(days=3)
+        cutoff = datetime.utcnow().date() + timedelta(days=4)
         clients_to_email = [c for c in query.all() if c.renewal_date and c.renewal_date <= cutoff]
     elif send_type == 'all':
         clients_to_email = query.all()
@@ -134,7 +134,7 @@ def dispatch_renewal_reminders(
 
 
 def run_scheduled_renewal_reminders():
-    """Cron job: all trainers, due within 3 days, opt-in only."""
+    """Cron job: all trainers, due within 4 days, opt-in only."""
     return dispatch_renewal_reminders(
         'due_closest',
         admin=True,

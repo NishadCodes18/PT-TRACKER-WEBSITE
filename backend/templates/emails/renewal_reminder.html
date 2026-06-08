@@ -4,7 +4,7 @@
 <div class="greeting">Hi {{ client_name }},</div>
 
 <div class="content">
-    <p>Your PT tier renewal date is coming up soon at <strong>{{ gym_name }}</strong>.</p>
+    <p>Your PT membership renewal date is coming up soon at <strong>{{ gym_name }}</strong>.</p>
     {% if trainer_name %}
     <p>Your trainer <strong>{{ trainer_name }}</strong> will be happy to help you renew on time.</p>
     {% endif %}
@@ -13,8 +13,8 @@
 <div class="highlight-box" style="background: linear-gradient(135deg, #fff3cd 0%, #ffe0b2 100%); border-left-color: #ffc107;">
     <strong style="color: #ff9800;">Renewal Notice</strong>
     <div class="info-row">
-        <span class="info-label">Current Tier:</span>
-        <span class="info-value">{{ pt_tier }}</span>
+        <span class="info-label">PT Amount:</span>
+        <span class="info-value">{{ pt_amount }}</span>
     </div>
     <div class="info-row">
         <span class="info-label">Renewal Date:</span>
@@ -29,6 +29,6 @@
 </div>
 
 <div class="content">
-    <p>To continue your training sessions without interruption, please renew your PT tier on or before the renewal date.</p>
+    <p>To continue your training sessions without interruption, please renew your PT membership on or before the renewal date.</p>
 </div>
 {% endblock %}

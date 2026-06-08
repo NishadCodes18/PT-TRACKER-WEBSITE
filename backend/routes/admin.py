@@ -180,9 +180,75 @@ def delete_trainer(trainer_id):
     trainer = Trainer.query.get_or_404(trainer_id)
     if _is_hidden_trainer(trainer):
         return jsonify({'error': 'Cannot delete hidden system trainer'}), 400
-    db.session.delete(trainer)
-    db.session.commit()
-    return jsonify({'message': 'Trainer deleted'})
+
+    try:
+        # Import models needed for cleanup
+        from ..models import (
+            Client, Payment, Expense, CommissionPolicy,
+            Notification, EmailLog, Attendance, Workout,
+            ProgressMetric, GalleryImage, Nutrition, Goal,
+            Badge, ClientReferral, AuditLog, TrainerRole,
+            IntegrationToken, TwoFactorAuth, PasswordResetOTP
+        )
+
+        # Get all clients belonging to this trainer
+        client_ids = [c.id for c in Client.query.filter_by(trainer_id=trainer_id).all()]
+
+        # Delete client-related records first (in correct order to avoid FK constraints)
+        for client_id in client_ids:
+            # Delete referrals
+            ClientReferral.query.filter_by(referrer_id=client_id).delete(synchronize_session=False)
+            ClientReferral.query.filter_by(referred_client_id=client_id).update({'referred_client_id': None}, synchronize_session=False)
+
+            # Delete gamification and tracking
+            Badge.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            Goal.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            Nutrition.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            GalleryImage.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            ProgressMetric.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            Workout.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            Attendance.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+            # Delete payments and email logs
+            Payment.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+            EmailLog.query.filter_by(client_id=client_id).delete(synchronize_session=False)
+
+        # Delete clients
+        Client.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+
+        # Delete trainer-specific records (order matters due to FK constraints)
+        Payment.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Expense.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        EmailLog.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Notification.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Attendance.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Workout.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        ProgressMetric.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        GalleryImage.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Nutrition.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        Goal.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+
+        # Delete authentication and security records
+        TwoFactorAuth.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        PasswordResetOTP.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        IntegrationToken.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        TrainerRole.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+
+        # Delete commission policy and audit logs
+        CommissionPolicy.query.filter_by(trainer_id=trainer_id).delete(synchronize_session=False)
+        AuditLog.query.filter_by(user_id=trainer_id).delete(synchronize_session=False)
+
+        # Finally delete the trainer
+        db.session.delete(trainer)
+        db.session.commit()
+
+        return jsonify({'message': 'Trainer deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error deleting trainer {trainer_id}: {error_details}")
+        return jsonify({'error': f'Failed to delete trainer: {str(e)}'}), 500
 @admin_bp.route('/trainers/<int:trainer_id>/commission-policy', methods=['PUT'])
 @login_required
 def update_commission_policy(trainer_id):

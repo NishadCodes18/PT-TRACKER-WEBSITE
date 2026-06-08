@@ -639,6 +639,76 @@ body {
     color: var(--text-muted);
 }
 
+/* Email logs scrollable container - compact layout */
+#email-logs-list {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-input);
+    padding: 8px;
+}
+
+#email-logs-list .payments-list {
+    gap: 6px;
+}
+
+#email-logs-list .payment-item {
+    padding: 10px 14px;
+    font-size: 13px;
+}
+
+#email-logs-list .payment-info h4 {
+    font-size: 13px;
+}
+
+#email-logs-list .client-meta {
+    font-size: 11px;
+}
+
+/* Admin email logs table scrollable */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--bg-elevated);
+    z-index: 10;
+}
+
+.data-table th {
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-muted);
+    border-bottom: 2px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr:hover {
+    background: rgba(249,115,22,0.04);
+}
+
+.data-table-wrapper {
+    max-height: 450px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
 @media (max-width: 768px) {
     .navbar { padding: 0 16px; }
     .nav-brand-loc { display: none; }

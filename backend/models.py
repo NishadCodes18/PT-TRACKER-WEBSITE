@@ -151,8 +151,8 @@ class Attendance(db.Model):
     """Track client attendance for training sessions"""
     __tablename__ = 'attendance'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     session_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(20), default='attended')  # attended, missed, rescheduled
     duration_minutes = db.Column(db.Integer)
@@ -165,8 +165,8 @@ class Workout(db.Model):
     """Log workout details and exercises"""
     __tablename__ = 'workouts'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     workout_date = db.Column(db.Date, nullable=False)
     exercise_name = db.Column(db.String(100), nullable=False)
     sets = db.Column(db.Integer)
@@ -182,8 +182,8 @@ class ProgressMetric(db.Model):
     """Track client progress metrics (weight, measurements, etc.)"""
     __tablename__ = 'progress_metrics'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     metric_date = db.Column(db.Date, nullable=False)
     metric_type = db.Column(db.String(50), nullable=False)  # weight, chest, waist, arms, etc
     value = db.Column(db.Float, nullable=False)
@@ -197,8 +197,8 @@ class GalleryImage(db.Model):
     """Store progress photos for clients"""
     __tablename__ = 'gallery_images'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     image_path = db.Column(db.String(500), nullable=False)
     caption = db.Column(db.String(200))
     upload_date = db.Column(db.Date, nullable=False)
@@ -210,8 +210,8 @@ class Nutrition(db.Model):
     """Track client nutrition/meals"""
     __tablename__ = 'nutrition'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     meal_date = db.Column(db.Date, nullable=False)
     meal_type = db.Column(db.String(50), nullable=False)  # breakfast, lunch, dinner, snack
     meal_description = db.Column(db.Text, nullable=False)
@@ -228,8 +228,8 @@ class Goal(db.Model):
     """Track fitness goals for clients"""
     __tablename__ = 'goals'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     goal_name = db.Column(db.String(100), nullable=False)
     goal_type = db.Column(db.String(50), nullable=False)  # weight_loss, muscle_gain, strength, endurance
     target_value = db.Column(db.Float)
@@ -246,7 +246,7 @@ class Badge(db.Model):
     """Gamification badges for achievements"""
     __tablename__ = 'badges'
     id = db.Column(db.Integer, primary_key=True)
-    client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
+    client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     badge_name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     badge_type = db.Column(db.String(50), nullable=False)  # milestone, streak, achievement
@@ -258,8 +258,8 @@ class ClientReferral(db.Model):
     """Track client referrals"""
     __tablename__ = 'client_referrals'
     id = db.Column(db.Integer, primary_key=True)
-    referrer_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=False)
-    referred_client_id = db.Column(db.Integer, db.ForeignKey('clients.id'), nullable=True)  # nullable until client signs up
+    referrer_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    referred_client_id = db.Column(db.Integer, db.ForeignKey('clients.id', ondelete='SET NULL'), nullable=True)  # nullable until client signs up
     referred_email = db.Column(db.String(120))
     referred_name = db.Column(db.String(100))
     referral_status = db.Column(db.String(20), default='pending')  # pending, signed_up, completed
@@ -272,7 +272,7 @@ class AuditLog(db.Model):
     """Track all user actions for audit trail"""
     __tablename__ = 'audit_logs'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='SET NULL'), nullable=True)
     username = db.Column(db.String(80))
     action = db.Column(db.String(100), nullable=False)  # create, update, delete, login, logout
     resource_type = db.Column(db.String(50))  # Client, Payment, Expense, etc
@@ -299,7 +299,7 @@ class TrainerRole(db.Model):
     """Define trainer roles for RBAC"""
     __tablename__ = 'trainer_roles'
     id = db.Column(db.Integer, primary_key=True)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False, unique=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False, unique=True)
     role = db.Column(db.String(50), default='trainer')  # admin, manager, trainer, assistant
     can_manage_trainers = db.Column(db.Boolean, default=False)
     can_manage_payments = db.Column(db.Boolean, default=False)
@@ -313,7 +313,7 @@ class IntegrationToken(db.Model):
     """Store OAuth tokens for external integrations"""
     __tablename__ = 'integration_tokens'
     id = db.Column(db.Integer, primary_key=True)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False)
     service = db.Column(db.String(50), nullable=False)  # google_calendar, slack, stripe
     access_token = db.Column(db.String(500))
     refresh_token = db.Column(db.String(500))
@@ -328,7 +328,7 @@ class TwoFactorAuth(db.Model):
     """Store 2FA settings for users"""
     __tablename__ = 'two_factor_auth'
     id = db.Column(db.Integer, primary_key=True)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False, unique=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False, unique=True)
     is_enabled = db.Column(db.Boolean, default=False)
     secret_key = db.Column(db.String(100))
     backup_codes = db.Column(db.Text)
@@ -341,7 +341,7 @@ class PasswordResetOTP(db.Model):
     """Store one-time passwords for email-based password resets."""
     __tablename__ = 'password_reset_otps'
     id = db.Column(db.Integer, primary_key=True)
-    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id'), nullable=False, unique=True)
+    trainer_id = db.Column(db.Integer, db.ForeignKey('trainers.id', ondelete='CASCADE'), nullable=False, unique=True)
     otp_hash = db.Column(db.String(256), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     attempts = db.Column(db.Integer, nullable=False, default=0)

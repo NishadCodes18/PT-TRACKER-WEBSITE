@@ -265,17 +265,52 @@ def delete_trainer(trainer_id):
     try:
         if not _require_admin():
             return jsonify({'error': 'Admin access required'}), 403
-        
+
         trainer = Trainer.query.get(trainer_id)
         if not trainer:
             return jsonify({'error': 'Trainer not found'}), 404
-        
+
+        # Prevent deleting admin owner account
+        from ..models import ADMIN_DATA_OWNER_USERNAME
+        if trainer.username == ADMIN_DATA_OWNER_USERNAME:
+            return jsonify({'error': 'Cannot delete admin owner account'}), 400
+
         username = trainer.username
+
+        # Manually delete all related records to avoid foreign key constraint issues
+        from ..models import (
+            TrainerRole, IntegrationToken, TwoFactorAuth,
+            EmailLog, AuditLog, CommissionPolicy
+        )
+
+        # Delete trainer role
+        TrainerRole.query.filter_by(trainer_id=trainer_id).delete()
+
+        # Delete integration tokens
+        IntegrationToken.query.filter_by(trainer_id=trainer_id).delete()
+
+        # Delete 2FA settings
+        TwoFactorAuth.query.filter_by(trainer_id=trainer_id).delete()
+
+        # Delete commission policy
+        CommissionPolicy.query.filter_by(trainer_id=trainer_id).delete()
+
+        # Delete email logs
+        EmailLog.query.filter_by(trainer_id=trainer_id).delete()
+
+        # Set audit logs user_id to NULL instead of deleting
+        AuditLog.query.filter_by(user_id=trainer_id).update({'user_id': None})
+
+        # The cascade='all, delete-orphan' in models will handle:
+        # - clients, payments, expenses, notifications
+
+        # Now delete the trainer
         db.session.delete(trainer)
         db.session.commit()
-        
+
         _log_audit('trainer_deleted', f'Deleted trainer {username}', trainer_id)
-        
+
         return jsonify({'message': 'Trainer deleted successfully'}), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        db.session.rollback()
+        return jsonify({'error': f'Failed to delete trainer: {str(e)}'}), 400

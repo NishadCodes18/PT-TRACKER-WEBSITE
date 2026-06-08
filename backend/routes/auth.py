@@ -131,7 +131,13 @@ def login():
                 return redirect(next_page)
             return redirect(url_for('dashboard.admin_panel'))
 
-        trainer = Trainer.query.filter_by(username=username).first()
+        # Allow login with username or email
+        trainer = Trainer.query.filter(
+            or_(
+                Trainer.username == username,
+                Trainer.email == username
+            )
+        ).first()
         if trainer:
             _unlock_expired_login(trainer)
             if trainer.is_login_locked():
