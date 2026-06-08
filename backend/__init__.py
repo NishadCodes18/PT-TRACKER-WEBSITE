@@ -157,7 +157,6 @@ def create_app(config_class=Config):
     from .routes.tracking import tracking_bp
     from .routes.email_logs import email_logs_bp
     from .routes.impersonate import impersonate_bp
-    from .routes.smtp_test import smtp_test_bp
     from .routes.send_email import send_email_bp
 
     app.register_blueprint(auth_bp)
@@ -175,7 +174,6 @@ def create_app(config_class=Config):
     app.register_blueprint(email_logs_bp)
     app.register_blueprint(impersonate_bp)
     app.register_blueprint(cron_bp)
-    app.register_blueprint(smtp_test_bp)
     app.register_blueprint(send_email_bp)
 
     csrf.exempt(cron_bp)
