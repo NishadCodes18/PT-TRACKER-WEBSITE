@@ -15,6 +15,8 @@ from .utils.api_responses import api_error
 
 
 def _column_exists(table_name, column_name):
+    # PRAGMA table_info is safe from SQL injection as it only accepts table names
+    # and SQLAlchemy's text() provides protection. Table names are hardcoded below.
     rows = db.session.execute(text(f"PRAGMA table_info({table_name})")).fetchall()
     return any(r[1] == column_name for r in rows)
 

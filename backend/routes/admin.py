@@ -48,7 +48,11 @@ def _resolve_commission(trainer):
     if not policy:
         policy = CommissionPolicy(trainer_id=trainer.id)
         db.session.add(policy)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise
     return {
         'id': policy.id,
         'trainer_id': trainer.id,
@@ -70,7 +74,11 @@ def _trainer_payout_summary(trainer):
     if not policy:
         policy = CommissionPolicy(trainer_id=trainer.id)
         db.session.add(policy)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            raise
     target = float(policy.monthly_target)
     if policy.override_percent is not None:
         payout_percent = float(policy.override_percent)
@@ -138,7 +146,11 @@ def create_trainer():
     trainer = Trainer(username=username, role=role)
     trainer.set_password(password)
     db.session.add(trainer)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to create trainer: {str(e)}'}), 500
     return jsonify(_serialize_trainer(trainer)), 201
 
 
@@ -168,7 +180,11 @@ def update_trainer(trainer_id):
         trainer.set_password(password)
     if 'role' in data:
         trainer.role = (data.get('role') or 'trainer').strip()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to update trainer: {str(e)}'}), 500
     return jsonify(_serialize_trainer(trainer))
 
 
@@ -287,7 +303,11 @@ def update_commission_policy(trainer_id):
     policy.below_target_percent = below_target_percent
     policy.override_percent = override_percent
     db.session.add(policy)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to update policy: {str(e)}'}), 500
     return jsonify({'message': 'Commission policy updated', 'commission_policy': _resolve_commission(trainer)})
 
 
@@ -302,7 +322,11 @@ def unlock_trainer_account(trainer_id):
         return jsonify({'error': 'Cannot modify hidden system trainer'}), 400
 
     trainer.reset_login_lockout()
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to unlock trainer: {str(e)}'}), 500
 
     return jsonify({'message': 'Trainer account unlocked', 'trainer': _serialize_trainer(trainer)})
 @admin_bp.route('/notifications', methods=['POST'])
@@ -322,7 +346,11 @@ def create_notification():
             return jsonify({'error': 'Invalid trainer'}), 400
         notification.trainer_id = trainer.id
     db.session.add(notification)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to create notification: {str(e)}'}), 500
     return jsonify({'message': 'Notification sent'}), 201
 @admin_bp.route('/payouts', methods=['GET'])
 @login_required
@@ -379,5 +407,9 @@ def mark_notification_read(notification_id):
     if not _admin_required() and notification.trainer_id not in (None, current_user.id):
         return jsonify({'error': 'Unauthorized'}), 403
     notification.is_read = True
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to mark as read: {str(e)}'}), 500
     return jsonify({'message': 'Notification marked as read'})

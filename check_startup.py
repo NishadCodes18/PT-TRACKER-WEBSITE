@@ -26,36 +26,36 @@ def check_critical_env_vars():
 
     all_critical_set = True
 
-    print("\n✓ Critical (required):")
+    print("\n[+] Critical (required):")
     for key, value in critical_vars.items():
         if value:
             if 'KEY' in key or 'SECRET' in key:
-                print(f"  ✓ {key}: ***SET*** (length: {len(value)})")
+                print(f"  [+] {key}: ***SET*** (length: {len(value)})")
             else:
-                print(f"  ✓ {key}: {value[:30]}...")
+                print(f"  [+] {key}: {value[:30]}...")
         else:
-            print(f"  ✗ {key}: NOT SET")
+            print(f"  [-] {key}: NOT SET")
             all_critical_set = False
 
-    print("\n⚠ Optional (email features):")
+    print("\n[!] Optional (email features):")
     smtp_count = 0
     for key, value in optional_vars.items():
         if value:
             if 'PASSWORD' in key:
-                print(f"  ✓ {key}: ***SET***")
+                print(f"  [+] {key}: ***SET***")
             else:
-                print(f"  ✓ {key}: {value}")
+                print(f"  [+] {key}: {value}")
             smtp_count += 1
         else:
-            print(f"  ✗ {key}: NOT SET")
+            print(f"  [-] {key}: NOT SET")
 
     if not all_critical_set:
-        print("\n❌ CRITICAL: Missing required environment variables!")
+        print("\n[ERROR] CRITICAL: Missing required environment variables!")
         print("   App will fail to start.")
         return False
 
     if smtp_count < 4:
-        print(f"\n⚠ WARNING: Email not configured ({smtp_count}/4 SMTP vars set)")
+        print(f"\n[!] WARNING: Email not configured ({smtp_count}/4 SMTP vars set)")
         print("   App will start but emails won't work.")
 
     return True
@@ -69,7 +69,7 @@ def check_database_connection():
 
     database_url = os.environ.get('DATABASE_URL')
     if not database_url:
-        print("⚠ No DATABASE_URL set - will use SQLite")
+        print("[!] No DATABASE_URL set - will use SQLite")
         return True
 
     try:
@@ -91,14 +91,14 @@ def check_database_connection():
                 connect_timeout=10
             )
             conn.close()
-            print("✓ Database connection successful!")
+            print("[+] Database connection successful!")
             return True
         else:
             print(f"Database: SQLite")
             return True
 
     except Exception as e:
-        print(f"✗ Database connection FAILED: {e}")
+        print(f"[-] Database connection FAILED: {e}")
         return False
 
 
@@ -110,16 +110,16 @@ def check_port_available():
 
     port = os.environ.get('PORT')
     if port:
-        print(f"✓ PORT: {port}")
+        print(f"[+] PORT: {port}")
         return True
     else:
-        print("⚠ PORT not set - using default 5000")
+        print("[!] PORT not set - using default 5000")
         print("  (This is normal for local dev, but may fail on Render)")
         return True
 
 
 if __name__ == '__main__':
-    print("\n🔍 Render Startup Health Check\n")
+    print("\n[*] Render Startup Health Check\n")
 
     checks_passed = True
 
@@ -134,11 +134,11 @@ if __name__ == '__main__':
 
     print("\n" + "=" * 60)
     if checks_passed:
-        print("✅ ALL CHECKS PASSED - App should start successfully")
+        print("[SUCCESS] ALL CHECKS PASSED - App should start successfully")
         print("=" * 60)
         sys.exit(0)
     else:
-        print("❌ SOME CHECKS FAILED - App may fail to start")
+        print("[ERROR] SOME CHECKS FAILED - App may fail to start")
         print("=" * 60)
         print("\nCheck Render environment variables and database configuration.")
         sys.exit(1)

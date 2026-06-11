@@ -128,6 +128,43 @@ def get_stats():
     })
 
 
+@dashboard_bp.route('/api/expiring-clients')
+@login_required
+def get_expiring_clients():
+    """Get clients with renewals expiring within 5 days."""
+    today = datetime.utcnow().date()
+    cutoff = today + timedelta(days=5)
+    is_admin = getattr(current_user, 'is_admin', False)
+
+    query = Client.query.filter(
+        Client.status == 'ongoing',
+        Client.renewal_date.isnot(None),
+        Client.renewal_date <= cutoff
+    )
+
+    if not is_admin:
+        query = query.filter(Client.trainer_id == current_user.id)
+
+    expiring_clients = query.order_by(Client.renewal_date).all()
+
+    return jsonify({
+        'count': len(expiring_clients),
+        'clients': [
+            {
+                'id': c.id,
+                'name': c.name,
+                'contact_number': c.contact_number or 'N/A',
+                'email': c.email or '',
+                'renewal_date': c.renewal_date.isoformat(),
+                'days_until': (c.renewal_date - today).days,
+                'pt_tier': c.pt_tier,
+                'expected_amount': c.expected_amount
+            }
+            for c in expiring_clients
+        ]
+    })
+
+
 @dashboard_bp.route('/api/insights')
 @login_required
 def get_insights():

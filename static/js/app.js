@@ -316,6 +316,28 @@ function applyStats(data) {
     }
 }
 
+async function loadExpiringClients(force = false) {
+    const cached = !force && Cache.get("expiring", 20000);
+    if (cached) {
+        applyExpiringClients(cached);
+        return;
+    }
+    try {
+        const r = await apiFetch(`${API_BASE}/api/expiring-clients`);
+        if (!r.ok) return;
+        const data = await r.json();
+        Cache.set("expiring", data);
+        applyExpiringClients(data);
+    } catch (e) {
+        console.error("Expiring clients error:", e);
+    }
+}
+
+function applyExpiringClients(data) {
+    const expiringEl = document.getElementById("expiring-clients");
+    if (expiringEl) expiringEl.textContent = data.count || 0;
+}
+
 async function loadStats(force = false) {
     const cached = !force && Cache.get("stats", 20000);
     if (cached) {
@@ -335,7 +357,7 @@ async function loadStats(force = false) {
 
 async function refreshAllData() {
     showToast("Refreshing all data...", "info", 2000);
-    Cache.invalidate("stats", "insights");
+    Cache.invalidate("stats", "insights", "expiring");
     try {
         await Promise.all([
             loadStats(true),
@@ -344,6 +366,7 @@ async function refreshAllData() {
             loadPayments(true),
             loadNotifications(),
             loadEmailLogs(1),
+            loadExpiringClients(true),
         ]);
         showToast("All data refreshed successfully!", "success");
     } catch (e) {
@@ -633,6 +656,10 @@ async function sendReminders(type, clientId = null) {
         console.error(e);
         showToast(e.message || "Error sending reminders.", "error");
     }
+}
+
+function sendRenewalReminders() {
+    sendReminders("due_closest");
 }
 
 function openModal(modalId) {
@@ -1433,6 +1460,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         loadPayments(true),
         loadNotifications(),
         loadEmailLogs(1),
+        loadExpiringClients(true),
         IS_ADMIN ? loadAdminTrainers() : Promise.resolve(),
         IS_ADMIN ? loadImpersonateDropdown() : Promise.resolve(),
         checkImpersonationStatus(),
@@ -1450,6 +1478,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setInterval(() => {
         loadStats(false);
         loadInsights(false);
+        loadExpiringClients(false);
     }, 60000);
 
     // Auto-check for due reminders in the background after 5 seconds

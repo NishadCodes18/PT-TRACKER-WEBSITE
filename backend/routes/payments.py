@@ -169,7 +169,11 @@ def create_payment():
         client.renewal_date = add_months(start_date, duration_months)
 
     db.session.add(payment)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to create payment: {str(e)}"}), 500
 
     return jsonify(
         {
@@ -195,7 +199,11 @@ def delete_payment(payment_id):
     payment = payment_query.first_or_404()
 
     db.session.delete(payment)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to delete payment: {str(e)}"}), 500
     return "", 204
 
 
