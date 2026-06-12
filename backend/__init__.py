@@ -123,10 +123,14 @@ def create_app(config_class=Config):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         return response
 
+    # Initialize database with error handling for serverless
+    is_vercel = os.environ.get('VERCEL') == 'true'
+
     with app.app_context():
         try:
             print("✓ Testing database connection...")
-            db.engine.connect()
+            connection = db.engine.connect()
+            connection.close()
             print("✓ Database connection successful")
 
             print("✓ Creating database tables...")
@@ -138,10 +142,16 @@ def create_app(config_class=Config):
                 _run_sqlite_compat_migrations()
                 print("✓ Migrations complete")
         except Exception as e:
-            print(f"❌ DATABASE ERROR: {e}")
+            error_msg = f"❌ DATABASE ERROR: {e}"
+            print(error_msg)
             import traceback
             traceback.print_exc()
-            raise
+
+            # For Vercel, log but don't crash - let first request initialize
+            if not is_vercel:
+                raise
+            else:
+                print("⚠️  Vercel: Deferring database initialization to first request")
 
     print("✓ Registering blueprints")
     from .routes.admin import admin_bp
@@ -180,6 +190,17 @@ def create_app(config_class=Config):
 
     csrf.exempt(cron_bp)
     print("✓ All blueprints registered")
+
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        """Global exception handler for better error reporting"""
+        app.logger.error(f"Unhandled exception: {e}", exc_info=True)
+        if isinstance(e, HTTPException):
+            return e
+        return jsonify({
+            "error": "Internal server error",
+            "message": str(e) if app.debug else "An unexpected error occurred"
+        }), 500
 
     @app.route("/")
     def index():

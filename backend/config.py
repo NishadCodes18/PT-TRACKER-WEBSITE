@@ -24,8 +24,16 @@ def _env_bool(name, default=False):
 def _database_uri():
     uri = os.environ.get('DATABASE_URL')
     if uri:
+        # Fix Heroku/Render postgres:// to postgresql://
         if uri.startswith('postgres://'):
             uri = uri.replace('postgres://', 'postgresql://', 1)
+        # For Vercel with PostgreSQL, ensure proper connection parameters
+        if _env_bool('VERCEL') and 'postgresql://' in uri:
+            # Add sslmode if not present for PostgreSQL connections
+            if '?' not in uri:
+                uri += '?sslmode=require'
+            elif 'sslmode=' not in uri:
+                uri += '&sslmode=require'
         return uri
     return f'sqlite:///{_DEFAULT_DB_PATH}'
 
@@ -37,15 +45,28 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-prod'
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    # Vercel serverless functions need smaller connection pools
+    # Vercel serverless functions need smaller connection pools and shorter timeouts
     _is_vercel = _env_bool('VERCEL')
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        'pool_pre_ping': True,
-        'pool_recycle': 300,
-        'pool_size': 2 if _is_vercel else 10,
-        'max_overflow': 2 if _is_vercel else 5,
-        'connect_args': {'connect_timeout': 10}
-    }
+    if _is_vercel:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 1,
+            'max_overflow': 0,
+            'pool_timeout': 10,
+            'connect_args': {
+                'connect_timeout': 10,
+                'sslmode': 'require'
+            }
+        }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            'pool_pre_ping': True,
+            'pool_recycle': 300,
+            'pool_size': 10,
+            'max_overflow': 5,
+            'connect_args': {'connect_timeout': 10}
+        }
 
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     SESSION_COOKIE_HTTPONLY = True
