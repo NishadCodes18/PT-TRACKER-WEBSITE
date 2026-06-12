@@ -215,9 +215,14 @@ def create_app(config_class=Config):
     @app.errorhandler(Exception)
     def handle_exception(e):
         """Global exception handler for better error reporting"""
-        app.logger.error(f"Unhandled exception: {e}", exc_info=True)
+        # Don't log 404s as errors - they're expected
         if isinstance(e, HTTPException):
+            if e.code == 404:
+                app.logger.debug(f"404 Not Found: {request.url}")
             return e
+
+        # Log actual errors
+        app.logger.error(f"Unhandled exception: {e}", exc_info=True)
         return jsonify({
             "error": "Internal server error",
             "message": str(e) if app.debug else "An unexpected error occurred"
@@ -230,6 +235,17 @@ def create_app(config_class=Config):
     @app.route("/health")
     def health():
         return jsonify({"ok": True, "status": "healthy"})
+
+    @app.route("/favicon.ico")
+    def favicon():
+        """Handle favicon requests to prevent 404 errors in logs"""
+        from flask import send_from_directory
+        import os
+        favicon_path = os.path.join(app.static_folder, 'favicon.ico')
+        if os.path.exists(favicon_path):
+            return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+        # Return 204 No Content if favicon doesn't exist
+        return '', 204
 
     @app.route("/login")
     def login_legacy():
