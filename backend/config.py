@@ -68,20 +68,22 @@ class Config:
         if _is_sqlite:
             SQLALCHEMY_ENGINE_OPTIONS = {
                 'pool_pre_ping': True,
-                'pool_recycle': 300,
+                'pool_recycle': 280,
                 'pool_size': 1,
                 'max_overflow': 0,
             }
         else:
             SQLALCHEMY_ENGINE_OPTIONS = {
                 'pool_pre_ping': True,
-                'pool_recycle': 300,
+                'pool_recycle': 280,
                 'pool_size': 1,
-                'max_overflow': 0,
-                'pool_timeout': 10,
+                'max_overflow': 2,
+                'pool_timeout': 5,
+                'echo_pool': False,
                 'connect_args': {
-                    'connect_timeout': 10,
-                    'sslmode': 'require'
+                    'connect_timeout': 5,
+                    'sslmode': 'require',
+                    'application_name': 'pt_tracker_vercel'
                 }
             }
     else:

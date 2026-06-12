@@ -119,8 +119,20 @@ def create_app(config_class=Config):
     def _add_security_headers(response):
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
-        if request.endpoint and str(request.endpoint).startswith("auth."):
+
+        # Add compression hint
+        if 'gzip' in request.headers.get('Accept-Encoding', '').lower():
+            response.headers.setdefault('Vary', 'Accept-Encoding')
+
+        # Cache static assets aggressively
+        if request.path.startswith('/static/'):
+            response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+        elif request.endpoint and str(request.endpoint).startswith("auth."):
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        else:
+            # API responses - short cache
+            response.headers['Cache-Control'] = 'public, max-age=60'
+
         return response
 
     # Initialize database with error handling for serverless

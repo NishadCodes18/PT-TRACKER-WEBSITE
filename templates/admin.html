@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - NITRRO ZONE 360</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -265,7 +267,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}" defer></script>
     <footer style="background: var(--bg-elevated); border-top: 1px solid var(--border-glow); padding: 20px; text-align: center; margin-top: 40px;">
         <p style="margin: 0; color: var(--text-muted); font-size: 14px;">
             <strong style="color: var(--text-primary);">PT Tracker Admin Panel v1.1</strong>
