@@ -128,21 +128,21 @@ def create_app(config_class=Config):
 
     with app.app_context():
         try:
-            print("✓ Testing database connection...")
+            print("[OK] Testing database connection...")
             connection = db.engine.connect()
             connection.close()
-            print("✓ Database connection successful")
+            print("[OK] Database connection successful")
 
-            print("✓ Creating database tables...")
+            print("[OK] Creating database tables...")
             db.create_all()
-            print("✓ Database tables created")
+            print("[OK] Database tables created")
 
             if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
-                print("✓ Running SQLite compatibility migrations...")
+                print("[OK] Running SQLite compatibility migrations...")
                 _run_sqlite_compat_migrations()
-                print("✓ Migrations complete")
+                print("[OK] Migrations complete")
         except Exception as e:
-            error_msg = f"❌ DATABASE ERROR: {e}"
+            error_msg = f"[ERROR] DATABASE ERROR: {e}"
             print(error_msg)
             import traceback
             traceback.print_exc()
@@ -151,9 +151,9 @@ def create_app(config_class=Config):
             if not is_vercel:
                 raise
             else:
-                print("⚠️  Vercel: Deferring database initialization to first request")
+                print("[WARNING] Vercel: Deferring database initialization to first request")
 
-    print("✓ Registering blueprints")
+    print("[OK] Registering blueprints")
     from .routes.admin import admin_bp
     from .routes.admin_management import admin_bp as admin_mgmt_bp
     from .routes.analytics import analytics_bp
@@ -189,7 +189,7 @@ def create_app(config_class=Config):
     app.register_blueprint(send_email_bp)
 
     csrf.exempt(cron_bp)
-    print("✓ All blueprints registered")
+    print("[OK] All blueprints registered")
 
     @app.errorhandler(Exception)
     def handle_exception(e):
@@ -219,6 +219,6 @@ def create_app(config_class=Config):
         return redirect(url_for("auth.register"))
 
     print("=" * 60)
-    print("✅ FLASK APP INITIALIZED SUCCESSFULLY")
+    print("[SUCCESS] FLASK APP INITIALIZED SUCCESSFULLY")
     print("=" * 60)
     return app

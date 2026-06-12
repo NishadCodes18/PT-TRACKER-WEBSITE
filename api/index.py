@@ -27,8 +27,8 @@ if not os.environ.get('SECRET_KEY') or os.environ.get('SECRET_KEY') == 'your-sec
     missing_vars.append('SECRET_KEY')
 
 if missing_vars:
-    print(f"❌ CRITICAL: Missing environment variables: {', '.join(missing_vars)}")
-    print("Please configure these in Vercel Dashboard → Settings → Environment Variables")
+    print(f"[CRITICAL ERROR] Missing environment variables: {', '.join(missing_vars)}")
+    print("Please configure these in Vercel Dashboard -> Settings -> Environment Variables")
 
 # Initialize app
 app = None

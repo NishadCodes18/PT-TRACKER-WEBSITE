@@ -47,26 +47,43 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Vercel serverless functions need smaller connection pools and shorter timeouts
     _is_vercel = _env_bool('VERCEL')
+    _db_uri = _database_uri()
+    _is_sqlite = _db_uri.startswith('sqlite')
+
     if _is_vercel:
-        SQLALCHEMY_ENGINE_OPTIONS = {
-            'pool_pre_ping': True,
-            'pool_recycle': 300,
-            'pool_size': 1,
-            'max_overflow': 0,
-            'pool_timeout': 10,
-            'connect_args': {
-                'connect_timeout': 10,
-                'sslmode': 'require'
+        if _is_sqlite:
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+                'pool_size': 1,
+                'max_overflow': 0,
             }
-        }
+        else:
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+                'pool_size': 1,
+                'max_overflow': 0,
+                'pool_timeout': 10,
+                'connect_args': {
+                    'connect_timeout': 10,
+                    'sslmode': 'require'
+                }
+            }
     else:
-        SQLALCHEMY_ENGINE_OPTIONS = {
-            'pool_pre_ping': True,
-            'pool_recycle': 300,
-            'pool_size': 10,
-            'max_overflow': 5,
-            'connect_args': {'connect_timeout': 10}
-        }
+        if _is_sqlite:
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+            }
+        else:
+            SQLALCHEMY_ENGINE_OPTIONS = {
+                'pool_pre_ping': True,
+                'pool_recycle': 300,
+                'pool_size': 10,
+                'max_overflow': 5,
+                'connect_args': {'connect_timeout': 10}
+            }
 
     PERMANENT_SESSION_LIFETIME = timedelta(days=7)
     SESSION_COOKIE_HTTPONLY = True
