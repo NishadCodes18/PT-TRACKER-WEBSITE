@@ -5,7 +5,8 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "15mb"
+        "maxLambdaSize": "15mb",
+        "maxDuration": 30
       }
     },
     {
@@ -59,11 +60,5 @@
     "SESSION_COOKIE_SECURE": "true",
     "REMEMBER_COOKIE_SECURE": "true"
   },
-  "regions": ["bom1"],
-  "functions": {
-    "api/index.py": {
-      "memory": 1024,
-      "maxDuration": 30
-    }
-  }
+  "regions": ["bom1"]
 }
