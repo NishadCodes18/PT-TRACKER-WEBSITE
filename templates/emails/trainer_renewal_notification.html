@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Renewal Due</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .info-box {
+            background: #fff;
+            border: 2px solid #f5576c;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .info-row {
+            margin: 10px 0;
+        }
+        .label {
+            font-weight: bold;
+            color: #f5576c;
+        }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚠️ Client Renewal Alert</h1>
+        <p>{{ gym_name }}</p>
+    </div>
+    <div class="content">
+        <p>Hi <strong>{{ trainer_name }}</strong>,</p>
+
+        <p>This is an automated notification that one of your clients has an upcoming renewal.</p>
+
+        <div class="info-box">
+            <div class="info-row">
+                <span class="label">Client Name:</span> {{ client_name }}
+            </div>
+            <div class="info-row">
+                <span class="label">Renewal Date:</span> {{ renewal_date }}
+            </div>
+            <div class="info-row">
+                <span class="label">Contact Number:</span> {{ contact_number }}
+            </div>
+            <div class="info-row">
+                <span class="label">Email:</span> {{ client_email }}
+            </div>
+        </div>
+
+        <p><strong>Action Required:</strong> Please follow up with {{ client_name }} regarding their membership renewal.</p>
+
+        <p>An automated reminder email has been sent to the client.</p>
+
+        <div class="footer">
+            <p>Automated notification from {{ gym_name }} PT Tracker System</p>
+        </div>
+    </div>
+</body>
+</html>

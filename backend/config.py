@@ -39,8 +39,13 @@ def _database_uri():
                 if match:
                     hostname = match.group(1)
                     if not hostname.endswith('.render.com'):
-                        # Add render.com domain
-                        external_host = f"{hostname}.oregon-postgres.render.com"
+                        # Detect region from hostname or default to oregon-postgres
+                        if 'singapore' in hostname or 'sin' in hostname:
+                            external_host = f"{hostname}.singapore-postgres.render.com"
+                        elif 'frankfurt' in hostname or 'fra' in hostname:
+                            external_host = f"{hostname}.frankfurt-postgres.render.com"
+                        else:
+                            external_host = f"{hostname}.oregon-postgres.render.com"
                         uri = uri.replace(f"@{hostname}:", f"@{external_host}:")
 
             # Add sslmode if not present for PostgreSQL connections

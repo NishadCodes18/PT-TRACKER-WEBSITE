@@ -167,15 +167,26 @@ def create_app(config_class=Config):
             traceback.print_exc()
 
             # Provide helpful hints for common issues
-            if "could not translate host name" in str(e):
+            error_str = str(e).lower()
+            if "could not translate host name" in error_str or "name or service not known" in error_str:
                 hint = "\nHINT: Cannot resolve database hostname. If using Render database on Vercel:\n"
                 hint += "- Use the EXTERNAL database URL from Render (with .render.com suffix)\n"
                 hint += "- Example: postgresql://user:pass@dpg-xxx.oregon-postgres.render.com/db\n"
                 hint += "- NOT the internal URL: postgresql://user:pass@dpg-xxx/db\n"
+                hint += "- Get external URL from Render Dashboard > Database > Connections > External Database URL\n"
                 print(hint)
                 app.logger.error(hint)
-            elif "connect_timeout" in str(e):
-                hint = "\nHINT: Connection timeout parameter not supported by this database.\n"
+            elif "connect_timeout" in error_str or "timeout" in error_str:
+                hint = "\nHINT: Database connection timeout. Check:\n"
+                hint += "- Database is running and accessible\n"
+                hint += "- Firewall/security groups allow connections from Vercel IPs\n"
+                hint += "- DATABASE_URL has correct credentials\n"
+                print(hint)
+                app.logger.error(hint)
+            elif "password authentication failed" in error_str:
+                hint = "\nHINT: Database authentication failed. Check:\n"
+                hint += "- DATABASE_URL has correct username and password\n"
+                hint += "- Password doesn't contain special characters that need URL encoding\n"
                 print(hint)
                 app.logger.error(hint)
 

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to {{ gym_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 32px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-box {
+            background: #f0f7ff;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .info-grid {
+            background: #fff;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .info-row {
+            display: flex;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 150px;
+        }
+        .info-value {
+            color: #333;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 15px 40px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .footer {
+            background: #f9f9f9;
+            padding: 30px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Welcome!</h1>
+            <p style="margin: 10px 0 0 0; font-size: 18px;">{{ gym_name }}</p>
+        </div>
+
+        <div class="content">
+            <p style="font-size: 18px;">Hi <strong>{{ client_name }}</strong>,</p>
+
+            <div class="welcome-box">
+                <p style="margin: 0; font-size: 16px;">
+                    <strong>Welcome to {{ gym_name }}!</strong> We're excited to have you join our fitness family.
+                    Your journey to a healthier, stronger you starts now!
+                </p>
+            </div>
+
+            <h2 style="color: #667eea;">📋 Your Membership Details</h2>
+
+            <div class="info-grid">
+                <div class="info-row">
+                    <div class="info-label">👤 Name:</div>
+                    <div class="info-value">{{ client_name }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">💪 Trainer:</div>
+                    <div class="info-value">{{ trainer_name }}</div>
+                </div>
+                <div class="info-row">
+                    <div class="info-label">💰 PT Amount:</div>
+                    <div class="info-value">{{ pt_amount }}</div>
+                </div>
+                {% if session_time %}
+                <div class="info-row">
+                    <div class="info-label">🕐 Session Time:</div>
+                    <div class="info-value">{{ session_time }}</div>
+                </div>
+                {% endif %}
+                {% if renewal_date %}
+                <div class="info-row">
+                    <div class="info-label">📅 Renewal Date:</div>
+                    <div class="info-value">{{ renewal_date }}</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <h3 style="color: #667eea;">🚀 Next Steps</h3>
+            <ul style="line-height: 2;">
+                <li>Arrive 10 minutes before your session time</li>
+                <li>Bring a water bottle and towel</li>
+                <li>Wear comfortable workout clothes</li>
+                <li>Discuss your fitness goals with {{ trainer_name }}</li>
+            </ul>
+
+            <p>If you have any questions or concerns, feel free to reach out to your trainer <strong>{{ trainer_name }}</strong>.</p>
+
+            <p style="margin-top: 30px;">Let's achieve your fitness goals together! 💪</p>
+
+            <p style="margin-top: 30px;">Best regards,<br>
+            <strong>{{ trainer_name }}</strong><br>
+            {{ gym_name }}</p>
+        </div>
+
+        <div class="footer">
+            <p><strong>{{ gym_name }}</strong></p>
+            <p>This is an automated welcome email. Please save this for your records.</p>
+        </div>
+    </div>
+</body>
+</html>

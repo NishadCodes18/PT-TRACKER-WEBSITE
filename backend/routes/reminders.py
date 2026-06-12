@@ -84,6 +84,7 @@ def test_smtp():
 @login_required
 @limiter.limit('15 per hour')
 def send_reminders():
+    from flask import current_app
     data = request.get_json() or {}
     send_type = data.get('type', 'due_closest')
     client_id = data.get('client_id')
@@ -93,9 +94,12 @@ def send_reminders():
     if send_type == 'specific' and not client_id:
         return api_error('client_id required for specific type', code='validation_error', status=400)
 
-    smtp_error = _smtp_validation_error()
-    if smtp_error:
-        return api_error(smtp_error, code='smtp_error', status=500)
+    # Only validate SMTP if using SMTP provider
+    email_provider = current_app.config.get('EMAIL_PROVIDER', 'smtp')
+    if email_provider == 'smtp':
+        smtp_error = _smtp_validation_error()
+        if smtp_error:
+            return api_error(smtp_error, code='smtp_error', status=500)
 
     try:
         sent_count, err = dispatch_renewal_reminders(
