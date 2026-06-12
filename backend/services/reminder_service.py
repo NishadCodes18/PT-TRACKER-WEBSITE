@@ -5,7 +5,7 @@ from flask import current_app
 
 from ..models import Client, EmailLog, get_or_create_default_admin_trainer
 from ..utils.email_context import resolve_gym_name
-from ..utils.mail import send_html_email, send_html_email_async
+from ..utils.mail import send_html_email
 
 
 def _eligible_clients_query(*, trainer_id=None, admin=False):
@@ -49,10 +49,7 @@ def _send_for_client(client, *, skip_recent_check=False):
     date_str = client.renewal_date.strftime('%d %b %Y') if client.renewal_date else 'soon'
     subject = f"Action Required: Your Personal Training Renewal at {gym_name}"
 
-    app = current_app._get_current_object()
-
-    send_html_email_async(
-        app,
+    send_html_email(
         client.email,
         subject,
         'member_renewal_reminder',
@@ -67,8 +64,7 @@ def _send_for_client(client, *, skip_recent_check=False):
     )
 
     if client.trainer and client.trainer.email:
-        send_html_email_async(
-            app,
+        send_html_email(
             client.trainer.email,
             f"Automated Alert: Client Renewal Due - {client.name}",
             'trainer_renewal_notification',

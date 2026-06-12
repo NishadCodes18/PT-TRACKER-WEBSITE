@@ -4,7 +4,7 @@ from flask import current_app
 
 from ..models import ADMIN_DATA_OWNER_USERNAME
 from .email_context import resolve_gym_name
-from .mail import send_html_email, send_html_email_async
+from .mail import send_html_email
 
 
 def _trainer_display_name(trainer):
@@ -77,15 +77,14 @@ def send_client_welcome_email(client):
 
 
 def dispatch_client_welcome_email(app, client):
-    """Queue welcome email after client create (non-blocking)."""
+    """Send welcome email synchronously (Vercel-compatible)."""
     email = _normalize_client_email(client.email)
     if not email:
         return False
 
     ctx = build_welcome_email_context(client)
     subject = f"Welcome to {ctx['gym_name']}!"
-    send_html_email_async(
-        app,
+    return send_html_email(
         email,
         subject,
         'welcome_new',
@@ -95,4 +94,3 @@ def dispatch_client_welcome_email(app, client):
         recipient_name=client.name,
         **ctx,
     )
-    return True

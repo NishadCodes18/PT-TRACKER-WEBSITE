@@ -597,6 +597,39 @@ All errors follow this format:
 
 ---
 
+## 🚀 Deployment Options
+
+This application can be deployed to multiple platforms:
+
+1. **[Vercel](VERCEL_DEPLOYMENT.md)** - Recommended for serverless deployment (free tier available)
+2. **[Render](#deployment-to-github--render)** - Alternative with built-in database and cron support
+
+### Quick Comparison
+
+| Feature | Vercel | Render |
+|---------|--------|--------|
+| **Hosting Type** | Serverless | Traditional Server |
+| **Free Tier** | 100 GB-hours/month | 750 hours/month |
+| **Cold Starts** | Yes (~1-2s) | After 15min inactivity (~30s) |
+| **Database** | External (Render/Supabase) | Built-in PostgreSQL |
+| **Cron Jobs** | External or Pro plan | Built-in free |
+| **Setup Complexity** | Medium | Easy (Blueprint) |
+| **Best For** | Scalable apps | All-in-one solution |
+
+---
+
+## 🚀 Deployment to Vercel (Recommended)
+
+See **[VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md)** for complete instructions.
+
+**Quick Steps:**
+1. Deploy database to Render PostgreSQL (free)
+2. Deploy app to Vercel (free)
+3. Connect them via `DATABASE_URL`
+4. Set up cron jobs (keep on Render or use Vercel Cron)
+
+---
+
 ## 🚀 Deployment to GitHub & Render
 
 ### Step 1: Prepare Your Project

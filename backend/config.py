@@ -32,16 +32,18 @@ def _database_uri():
 class Config:
     """Application configuration class"""
     BASE_DIR = _BASE_DIR
-    IS_PRODUCTION = _env_bool('RENDER') or _env('FLASK_ENV', '') == 'production'
+    IS_PRODUCTION = _env_bool('RENDER') or _env_bool('VERCEL') or _env('FLASK_ENV', '') == 'production'
 
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-prod'
     SQLALCHEMY_DATABASE_URI = _database_uri()
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Vercel serverless functions need smaller connection pools
+    _is_vercel = _env_bool('VERCEL')
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
         'pool_recycle': 300,
-        'pool_size': 10,
-        'max_overflow': 5,
+        'pool_size': 2 if _is_vercel else 10,
+        'max_overflow': 2 if _is_vercel else 5,
         'connect_args': {'connect_timeout': 10}
     }
 

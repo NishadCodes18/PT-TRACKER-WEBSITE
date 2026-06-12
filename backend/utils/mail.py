@@ -169,7 +169,17 @@ def _send_html_email_smtp(
 
 
 def send_html_email_async(app, recipient, subject, template_name, **context):
-    """Send HTML email asynchronously (supports both Mailgun API and SMTP)."""
+    """
+    DEPRECATED: Do not use on Vercel - threads are killed immediately.
+
+    This function uses threading which is incompatible with Vercel's serverless
+    architecture. Vercel terminates the process immediately after the response
+    is sent, killing any background threads before emails can be delivered.
+
+    Use send_html_email() instead for synchronous email sending.
+
+    This function is kept for backward compatibility with non-Vercel deployments only.
+    """
 
     def _send():
         try:

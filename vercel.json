@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "wsgi.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "wsgi.py"
+    }
+  ],
+  "env": {
+    "FLASK_ENV": "production",
+    "SESSION_COOKIE_SECURE": "true",
+    "REMEMBER_COOKIE_SECURE": "true"
+  },
+  "regions": ["bom1"]
+}
