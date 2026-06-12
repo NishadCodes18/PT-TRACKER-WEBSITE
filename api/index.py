@@ -2,10 +2,18 @@
 import os
 import sys
 import traceback
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Add the parent directory to the path so we can import from backend
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
+
+logger.info(f"Python path: {sys.path}")
+logger.info(f"Parent directory: {parent_dir}")
 
 # Load environment variables
 try:
@@ -13,8 +21,9 @@ try:
     env_path = os.path.join(parent_dir, '.env')
     if os.path.exists(env_path):
         load_dotenv(env_path)
+        logger.info(".env file loaded")
 except Exception as e:
-    print(f"Warning: Could not load .env file: {e}")
+    logger.warning(f"Could not load .env file: {e}")
 
 # Set Vercel flag if not already set
 os.environ.setdefault('VERCEL', 'true')
@@ -23,23 +32,30 @@ os.environ.setdefault('VERCEL', 'true')
 missing_vars = []
 if not os.environ.get('DATABASE_URL'):
     missing_vars.append('DATABASE_URL')
+    logger.error("DATABASE_URL is missing")
 if not os.environ.get('SECRET_KEY') or os.environ.get('SECRET_KEY') == 'your-secret-key-here':
     missing_vars.append('SECRET_KEY')
+    logger.error("SECRET_KEY is missing or using default")
 
 if missing_vars:
-    print(f"[CRITICAL ERROR] Missing environment variables: {', '.join(missing_vars)}")
-    print("Please configure these in Vercel Dashboard -> Settings -> Environment Variables")
+    logger.critical(f"Missing environment variables: {', '.join(missing_vars)}")
+    logger.info("Please configure these in Vercel Dashboard -> Settings -> Environment Variables")
 
 # Initialize app
 app = None
+init_error = None
 try:
+    logger.info("Importing create_app from backend...")
     from backend import create_app
-    print("Creating Flask app...")
+    logger.info("Creating Flask app...")
     app = create_app()
-    print("Flask app created successfully")
+    logger.info("Flask app created successfully")
 except Exception as e:
-    error_msg = f"CRITICAL ERROR: Failed to create Flask app: {e}\n{traceback.format_exc()}"
-    print(error_msg)
+    init_error = str(e)
+    init_traceback = traceback.format_exc()
+    error_msg = f"CRITICAL ERROR: Failed to create Flask app: {e}"
+    logger.error(error_msg)
+    logger.error(init_traceback)
 
     # Create a minimal error app
     from flask import Flask, jsonify
@@ -50,14 +66,14 @@ except Exception as e:
     def error_handler(path=''):
         return jsonify({
             "error": "Application failed to initialize",
-            "message": str(e),
-            "traceback": traceback.format_exc()
+            "message": init_error,
+            "traceback": init_traceback
         }), 500
 
 # Export app for Vercel
 # Vercel's Python runtime looks for 'app' or 'application' variable
 if app is None:
-    print("CRITICAL: App is None, creating minimal error handler")
+    logger.critical("App is None, creating minimal error handler")
     from flask import Flask, jsonify
     app = Flask(__name__)
 
@@ -69,5 +85,6 @@ if app is None:
             "message": "Check Vercel logs for details"
         }), 500
 
+logger.info("Exporting app as handler for Vercel")
 # This is required for Vercel
 handler = app

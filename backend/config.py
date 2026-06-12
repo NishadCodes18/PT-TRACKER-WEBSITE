@@ -27,8 +27,22 @@ def _database_uri():
         # Fix Heroku/Render postgres:// to postgresql://
         if uri.startswith('postgres://'):
             uri = uri.replace('postgres://', 'postgresql://', 1)
+
         # For Vercel with PostgreSQL, ensure proper connection parameters
         if _env_bool('VERCEL') and 'postgresql://' in uri:
+            # Convert internal hostname to external for Vercel
+            # Render internal: dpg-xxx-a -> External: dpg-xxx-a.oregon-postgres.render.com
+            if 'render' in uri.lower() and '.render.com' not in uri:
+                # Extract hostname
+                import re
+                match = re.search(r'@([^:]+):', uri)
+                if match:
+                    hostname = match.group(1)
+                    if not hostname.endswith('.render.com'):
+                        # Add render.com domain
+                        external_host = f"{hostname}.oregon-postgres.render.com"
+                        uri = uri.replace(f"@{hostname}:", f"@{external_host}:")
+
             # Add sslmode if not present for PostgreSQL connections
             if '?' not in uri:
                 uri += '?sslmode=require'

@@ -128,29 +128,50 @@ def create_app(config_class=Config):
 
     with app.app_context():
         try:
+            app.logger.info("[OK] Testing database connection...")
             print("[OK] Testing database connection...")
             connection = db.engine.connect()
             connection.close()
+            app.logger.info("[OK] Database connection successful")
             print("[OK] Database connection successful")
 
+            app.logger.info("[OK] Creating database tables...")
             print("[OK] Creating database tables...")
             db.create_all()
+            app.logger.info("[OK] Database tables created")
             print("[OK] Database tables created")
 
             if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                app.logger.info("[OK] Running SQLite compatibility migrations...")
                 print("[OK] Running SQLite compatibility migrations...")
                 _run_sqlite_compat_migrations()
+                app.logger.info("[OK] Migrations complete")
                 print("[OK] Migrations complete")
         except Exception as e:
             error_msg = f"[ERROR] DATABASE ERROR: {e}"
+            app.logger.error(error_msg, exc_info=True)
             print(error_msg)
             import traceback
             traceback.print_exc()
+
+            # Provide helpful hints for common issues
+            if "could not translate host name" in str(e):
+                hint = "\nHINT: Cannot resolve database hostname. If using Render database on Vercel:\n"
+                hint += "- Use the EXTERNAL database URL from Render (with .render.com suffix)\n"
+                hint += "- Example: postgresql://user:pass@dpg-xxx.oregon-postgres.render.com/db\n"
+                hint += "- NOT the internal URL: postgresql://user:pass@dpg-xxx/db\n"
+                print(hint)
+                app.logger.error(hint)
+            elif "connect_timeout" in str(e):
+                hint = "\nHINT: Connection timeout parameter not supported by this database.\n"
+                print(hint)
+                app.logger.error(hint)
 
             # For Vercel, log but don't crash - let first request initialize
             if not is_vercel:
                 raise
             else:
+                app.logger.warning("[WARNING] Vercel: Deferring database initialization to first request")
                 print("[WARNING] Vercel: Deferring database initialization to first request")
 
     print("[OK] Registering blueprints")
