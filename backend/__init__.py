@@ -191,6 +191,7 @@ def create_app(config_class=Config):
     from .routes.email_logs import email_logs_bp
     from .routes.impersonate import impersonate_bp
     from .routes.send_email import send_email_bp
+    from .routes.license_admin import license_admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -208,6 +209,7 @@ def create_app(config_class=Config):
     app.register_blueprint(impersonate_bp)
     app.register_blueprint(cron_bp)
     app.register_blueprint(send_email_bp)
+    app.register_blueprint(license_admin_bp)
 
     csrf.exempt(cron_bp)
     print("[OK] All blueprints registered")

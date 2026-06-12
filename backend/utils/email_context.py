@@ -22,7 +22,7 @@ def build_email_context(**overrides):
         'gym_name': gym_name,
         'subject': overrides.get('subject', ''),
         'year': datetime.utcnow().year,
-        'support_email': current_app.config.get('SMTP_USER', 'support@gym.com'),
+        'support_email': 'nishadpatil2008@gmail.com',
         'app_developer': current_app.config.get('APP_DEVELOPER', 'NISHAD PATIL'),
         'trainer_name': overrides.get('trainer_name'),
     }

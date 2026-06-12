@@ -2,14 +2,15 @@
 
 > **Professional Personal Training Management System for Freelance Trainers in India**
 
-**Version:** 1.0 (Production Ready)  
+**Version:** 1.1 (Production Ready)  
 **Status:** ✅ Complete  
 **Made by:** Nishad Patil  
-**Date:** June 2, 2026
+**Contact:** nishadpatil2008@gmail.com  
+**Last Updated:** June 12, 2026
 
 ---
 
-## ⚡ Quick Start (3 Steps)
+## ⚡ Quick Start (4 Steps)
 
 ### Step 1: Setup Environment
 
@@ -28,7 +29,20 @@ pip install -r requirements.txt
 python run.py
 ```
 
-### Step 3: Access
+### Step 3: Setup License Keys
+
+```bash
+# Create license table
+python scripts/create_license_table.py
+
+# Generate 20 license keys
+python scripts/generate_licenses.py 20
+
+# Test the system
+python scripts/test_license_system.py
+```
+
+### Step 4: Access
 
 ```
 URL:      http://localhost:5000
@@ -38,18 +52,22 @@ Password: adminvenom@123
 
 > ⚠️ **Change the default password immediately after first login!**
 
+> 📝 **Note:** Users need a valid license key to register. Distribute the generated keys to authorized users.
+
 ---
 
-## ✨ Features (40+)
+## ✨ Features (45+)
 
 ### 🎯 Client Management
 - Add, edit, delete clients with comprehensive profiles
+- **License key registration** — secure access control for new users
 - **Multi-gym support** — track which gym each client trains at
 - PT tier system (Silver ₹5k / Gold ₹8k / Platinum ₹12k per month)
 - Renewal date tracking with automated reminders
 - Phone validation (10-digit Indian numbers with +91/91/0 prefix support)
 - Client status tracking (ongoing/lost)
 - Time slot scheduling & notes
+- **Expiring members section** — dashboard view of clients expiring within 5 days
 
 ### 💳 Payment Tracking
 - **7 payment modes**: Cash, UPI, Card, Bank Transfer, Online Gateway, Cheque, Other
@@ -59,11 +77,15 @@ Password: adminvenom@123
 - Color-coded gym payment status indicators (✅ Green = Paid, ❌ Red = Pending)
 
 ### 📧 Email Notification System
-- **Automated renewal reminders** — emails sent 3 days before renewal
+- **Automated renewal reminders** — emails sent 5 days before renewal
+- **Expiring members dashboard** — dedicated section showing clients expiring within 5 days
+- **Manual email sending** — individual client emails or bulk send to all expiring clients
+- **Duplicate prevention** — won't send same reminder twice within 5 days
 - **Dual notifications** — both client AND trainer receive emails
 - **Complete email audit trail** — full history of all emails sent
 - Delivery status tracking (sent/failed) with error logging
 - Email statistics API with filtering & pagination
+- Color-coded urgency indicators (Red/Orange/Green)
 
 ### 📈 Progress Tracking
 - Monthly BMI progress gallery (photo uploads)
@@ -122,6 +144,7 @@ Password: adminvenom@123
 
 | Feature | Details |
 |---------|---------|
+| **License Key System** | Registration requires valid license key (one-time use) |
 | **Password Hashing** | PBKDF2-SHA256 |
 | **Two-Factor Auth** | TOTP-based 2FA with QR code setup |
 | **Access Control** | Role-Based (Admin, Manager, Trainer, Assistant) |
@@ -129,6 +152,7 @@ Password: adminvenom@123
 | **Email Logging** | Full delivery history with error tracking |
 | **Session Management** | Secure session handling with timeout |
 | **IP Logging** | Track login IP addresses |
+| **Key Tracking** | Track which license keys are used and by whom |
 
 ### RBAC Permissions
 
@@ -164,6 +188,10 @@ SMTP_PORT=587
 SMTP_USER=your-email@gmail.com
 SMTP_PASSWORD=your-google-app-password
 
+# Automatic Renewal Emails (Cron)
+CRON_SECRET=your-cron-secret-here
+APP_URL=http://localhost:5000
+
 # Application Settings
 GYM_NAME=Your Gym Name
 ADMIN_USERNAME=adminvenom
@@ -186,18 +214,32 @@ ENABLE_AUDIT_LOGGING=True
 
 ### Test Email Configuration
 
-Create a client with a renewal date 3 days from now. The system will automatically send an email. Check the Email Logs in the dashboard to verify delivery.
+Test manual email sending:
+1. Go to dashboard → "Members Expiring Soon" section
+2. Click "Send All Renewal Emails" button
+3. Check Email Logs to verify delivery
+
+For automatic emails (cron setup required):
+```bash
+curl -X POST http://localhost:5000/api/cron/send-renewals \
+  -H "Authorization: Bearer YOUR_CRON_SECRET"
+```
+
+See `AUTO_RENEWAL_EMAILS_GUIDE.md` for complete cron setup instructions.
 
 ### Production Deployment Checklist
 
 - [ ] Change `SECRET_KEY` to a cryptographically random string
 - [ ] Change default admin credentials
+- [ ] Generate license keys for authorized users
+- [ ] Set up cron job for automatic renewal emails (see guide)
 - [ ] Use PostgreSQL instead of SQLite for production
 - [ ] Enable HTTPS/SSL
 - [ ] Set `LOG_LEVEL=WARNING`
 - [ ] Configure proper SMTP service
 - [ ] Set up regular database backups
 - [ ] Regularly rotate Gmail App Password
+- [ ] Set CRON_SECRET for automatic email security
 
 ---
 
@@ -210,42 +252,53 @@ gym-tracker/
 │   ├── config.py                # Configuration
 │   ├── database.py              # SQLAlchemy setup
 │   ├── models.py                # All database models (20+ tables)
+│   ├── models_license.py        # License key model
 │   ├── routes/
 │   │   ├── admin.py             # Admin pages
 │   │   ├── admin_management.py  # Trainer management & RBAC
 │   │   ├── analytics.py         # Revenue, retention, CLV analytics
-│   │   ├── auth.py              # Authentication
+│   │   ├── auth.py              # Authentication + License validation
 │   │   ├── clients.py           # Client CRUD + advanced search
-│   │   ├── dashboard.py         # Dashboard
+│   │   ├── dashboard.py         # Dashboard + expiring clients
 │   │   ├── email_logs.py        # Email audit trail API
 │   │   ├── export.py            # Excel & PDF exports
 │   │   ├── gamification.py      # Badges & leaderboards
 │   │   ├── payments.py          # Payment tracking
 │   │   ├── reminders.py         # Renewal reminders
+│   │   ├── cron.py              # Cron endpoints for auto-emails
 │   │   ├── security.py          # 2FA, auth, profiles
 │   │   └── tracking.py          # Attendance, workouts, progress
+│   ├── services/
+│   │   └── reminder_service.py  # Email reminder logic
 │   └── utils/
 │       ├── helpers.py           # 50+ utility functions
 │       ├── mail.py              # Email sending
+│       ├── email_context.py     # Email template context
 │       └── indian_helpers.py    # Indian-specific utilities
 │
+├── scripts/
+│   ├── create_license_table.py # Create license keys table
+│   ├── generate_licenses.py     # Generate license keys
+│   ├── test_license_system.py   # Test license system
+│   └── cron_send_renewals.py    # Cron script for auto-emails
+│
 ├── templates/
-│   ├── dashboard.html           # Main dashboard
+│   ├── dashboard.html           # Main dashboard (+ expiring section)
 │   ├── login.html               # Login page
-│   ├── register.html            # Registration page
+│   ├── register.html            # Registration page (+ license field)
 │   ├── admin.html               # Admin panel
 │   └── ...                      # Other pages
 │
 ├── static/
 │   ├── css/style.css            # Professional dark theme
-│   └── js/app.js                # Frontend logic
+│   └── js/app.js                # Frontend logic (+ email functions)
 │
 ├── .env.example                 # Environment template
 ├── requirements.txt             # Python dependencies
 ├── run.py                       # Entry point
-├── setup.bat                    # Windows quick setup
-├── setup.sh                     # Linux/Mac quick setup
-├── schema.sql                   # Database schema
+├── LICENSE_SETUP_INSTRUCTIONS.md    # License system guide
+├── AUTO_RENEWAL_EMAILS_GUIDE.md     # Auto-email setup guide
+├── FINAL_SUMMARY.txt            # Complete implementation summary
 └── gym_tracker.db               # SQLite database (auto-created)
 ```
 
@@ -262,6 +315,7 @@ gym-tracker/
 | `payments` | Payment records with modes & gym tracking |
 | `expenses` | Expense records by category |
 | `email_logs` | Complete email audit trail |
+| `license_keys` | License keys for registration control |
 
 ### Tracking Tables
 
@@ -567,9 +621,22 @@ All errors follow this format:
 
 ### Scenario 3: Client Renewal Workflow
 1. Client created with gym location & renewal date
-2. 3 days before renewal → Automatic email to client AND trainer
+2. 5 days before renewal → Automatic email to client AND trainer
 3. Email logged in audit trail
-4. Payment logged when received → Next renewal date set
+4. Trainer can manually send reminders from "Expiring Members" section
+5. Payment logged when received → Next renewal date set
+
+---
+
+## 📚 Additional Documentation
+
+| Document | Description |
+|----------|-------------|
+| `LICENSE_SETUP_INSTRUCTIONS.md` | Complete guide for license key system setup |
+| `AUTO_RENEWAL_EMAILS_GUIDE.md` | Complete guide for automatic email setup |
+| `FINAL_SUMMARY.txt` | Complete implementation summary |
+| `QUICK_START.txt` | Quick setup commands |
+| `VERCEL_DEPLOYMENT.md` | Vercel deployment guide |
 
 ---
 
@@ -594,6 +661,18 @@ All errors follow this format:
 - Run `pip install -r requirements.txt`
 - Check that `.env` file exists and is configured
 - Review console output for error messages
+
+### License Key Issues
+- Run `python scripts/create_license_table.py` to create the table
+- Generate keys with `python scripts/generate_licenses.py 10`
+- Test with `python scripts/test_license_system.py`
+- Check that license key is valid and unused
+
+### Cron Job Not Running
+- Verify `CRON_SECRET` environment variable is set
+- Check that `APP_URL` points to your application
+- Test endpoint manually: `curl -X POST https://your-domain/api/cron/send-renewals -H "Authorization: Bearer YOUR_SECRET"`
+- See `AUTO_RENEWAL_EMAILS_GUIDE.md` for setup help
 
 ---
 
@@ -831,7 +910,8 @@ git push
 
 ## 📄 License
 
-Created by **Nishad Patil** © 2026
+Created by **Nishad Patil** © 2026  
+Contact: nishadpatil2008@gmail.com
 
 ---
 

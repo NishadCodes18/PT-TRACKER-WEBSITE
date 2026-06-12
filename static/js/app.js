@@ -317,25 +317,110 @@ function applyStats(data) {
 }
 
 async function loadExpiringClients(force = false) {
-    const cached = !force && Cache.get("expiring", 20000);
+    const listEl = document.getElementById("expiring-clients-list");
+    if (!listEl) return;
+
+    const cached = !force && Cache.get("expiring_list", 20000);
     if (cached) {
-        applyExpiringClients(cached);
+        listEl.innerHTML = renderExpiringClients(cached.clients);
         return;
     }
+
+    setLoading("expiring-clients-list", "Loading expiring clients...");
+
     try {
         const r = await apiFetch(`${API_BASE}/api/expiring-clients`);
         if (!r.ok) return;
         const data = await r.json();
-        Cache.set("expiring", data);
-        applyExpiringClients(data);
+        Cache.set("expiring_list", data);
+
+        // Update the stat card count
+        const expiringEl = document.getElementById("expiring-clients");
+        if (expiringEl) expiringEl.textContent = data.count || 0;
+
+        listEl.innerHTML = renderExpiringClients(data.clients);
     } catch (e) {
         console.error("Expiring clients error:", e);
+        listEl.innerHTML = '<p class="text-muted">Failed to load expiring clients</p>';
     }
 }
 
-function applyExpiringClients(data) {
-    const expiringEl = document.getElementById("expiring-clients");
-    if (expiringEl) expiringEl.textContent = data.count || 0;
+function renderExpiringClients(clients) {
+    if (!clients || !clients.length) {
+        return '<p class="text-muted">✅ No clients expiring in the next 5 days!</p>';
+    }
+
+    return (
+        '<div class="clients-list">' +
+        clients
+            .map((c) => {
+                const daysUntil = c.days_until;
+                const urgencyColor = daysUntil <= 0 ? '#ef4444' : daysUntil <= 2 ? '#f59e0b' : '#10b981';
+                const urgencyText = daysUntil <= 0 ? 'EXPIRED' : daysUntil === 0 ? 'TODAY' : `${daysUntil} days`;
+                const emailBtn = c.email
+                    ? `<button class="btn btn-sm btn-warning" onclick="sendReminderToClient(${c.id})" title="Send renewal reminder email">📧 Send Email</button>`
+                    : '<span class="text-muted" style="font-size:11px;">No email</span>';
+
+                return `<div class="client-item" style="border-left: 4px solid ${urgencyColor};">
+                    <div class="client-info">
+                        <h4>${escapeHtml(c.name)}</h4>
+                        <div class="client-meta">
+                            <span style="color:${urgencyColor};font-weight:600;">⏰ ${urgencyText}</span>
+                            <span>Renewal: ${formatDate(c.renewal_date)}</span>
+                            <span>${escapeHtml(c.pt_tier || "Silver")}</span>
+                            <span>${c.contact_number}</span>
+                            ${c.email ? `<span>📧 ${escapeHtml(c.email)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="client-actions">
+                        ${emailBtn}
+                        <button class="btn btn-sm btn-outline" onclick="editClient(${c.id})">Edit</button>
+                    </div>
+                </div>`;
+            })
+            .join("") +
+        "</div>"
+    );
+}
+
+async function sendReminderToClient(clientId) {
+    if (!confirm("Send renewal reminder email to this client?")) return;
+
+    try {
+        const r = await apiFetch(`${API_BASE}/api/reminders/send`, {
+            method: "POST",
+            body: JSON.stringify({ type: "specific", client_id: clientId }),
+        });
+        const data = await parseApiResponse(r, "Failed to send reminder.");
+        const msg = data.message || `Renewal reminder sent successfully!`;
+        showToast(msg, "success");
+
+        // Refresh the expiring clients list
+        await loadExpiringClients(true);
+    } catch (e) {
+        console.error(e);
+        showToast(e.message || "Error sending reminder.", "error");
+    }
+}
+
+async function sendExpiringRenewalReminders() {
+    if (!confirm("Send renewal reminder emails to ALL clients expiring in the next 5 days?\n\nOnly clients with email reminders enabled will receive emails.")) return;
+
+    try {
+        const r = await apiFetch(`${API_BASE}/api/reminders/send`, {
+            method: "POST",
+            body: JSON.stringify({ type: "due_closest" }),
+        });
+        const data = await parseApiResponse(r, "Failed to send reminders.");
+        const msg = data.message || `Dispatched ${data.sent_count ?? 0} renewal reminder(s).`;
+        showToast(msg, "success", 6000);
+
+        // Refresh the expiring clients list
+        await loadExpiringClients(true);
+    } catch (e) {
+        console.error(e);
+        showToast(e.message || "Error sending reminders.", "error");
+    }
 }
 
 async function loadStats(force = false) {
@@ -357,7 +442,7 @@ async function loadStats(force = false) {
 
 async function refreshAllData() {
     showToast("Refreshing all data...", "info", 2000);
-    Cache.invalidate("stats", "insights", "expiring");
+    Cache.invalidate("stats", "insights", "expiring", "expiring_list");
     try {
         await Promise.all([
             loadStats(true),
@@ -365,6 +450,7 @@ async function refreshAllData() {
             loadClients(true),
             loadPayments(true),
             loadNotifications(),
+            loadExpiringClients(true),
             loadEmailLogs(1),
             loadExpiringClients(true),
         ]);

@@ -135,6 +135,24 @@
             </div>
         </section>
         {% endif %}
+        <section class="card" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.05) 0%, rgba(251, 191, 36, 0.1) 100%); border: 2px solid rgba(251, 191, 36, 0.4);">
+            <div class="card-header" style="background: rgba(251, 191, 36, 0.1); border-bottom: 1px solid rgba(251, 191, 36, 0.3);">
+                <h2>⏰ Members Expiring Soon (Next 5 Days)</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="loadExpiringClients(true)">🔄 Refresh</button>
+                    <button class="btn btn-warning" onclick="sendExpiringRenewalReminders()">📧 Send All Renewal Emails</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <p class="text-muted" style="margin-bottom: 15px; font-size: 13px;">
+                    ⚡ <strong>Auto-Send:</strong> Renewal emails are automatically sent 5 days before expiry to clients with email reminders enabled.
+                    You can also manually send emails to any client below by clicking their "Send Email" button.
+                </p>
+                <div id="expiring-clients-list">
+                    <p class="text-muted">Loading expiring clients...</p>
+                </div>
+            </div>
+        </section>
         <section class="card clients-section">
             <div class="card-header">
                 <h2>👥 Clients</h2>
@@ -436,7 +454,7 @@
             <strong style="color: var(--text-primary);">Personal Training Gym Tracker v1.0</strong>
         </p>
         <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 12px;">
-            Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong> • © 2026
+            Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong> • <a href="mailto:nishadpatil2008@gmail.com" style="color: var(--accent); text-decoration: none;">nishadpatil2008@gmail.com</a> • © 2026
         </p>
     </footer>
 </body>

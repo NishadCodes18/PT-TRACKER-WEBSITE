@@ -476,8 +476,167 @@ function renderEmailLogsPagination(pagination, currentPage) {
     container.innerHTML = html;
 }
 
+// License Key Management
+let licensePagination = { page: 1, per_page: 20, pages: 1 };
+
+async function loadLicenseKeys() {
+    const listEl = document.getElementById('license-keys-list');
+    if (!listEl) return;
+
+    const statusFilter = document.getElementById('license-status-filter')?.value || 'unused';
+
+    try {
+        const r = await apiFetch(`${API_BASE}/api/admin/licenses?page=${licensePagination.page}&per_page=${licensePagination.per_page}&status=${statusFilter}`);
+        if (!r.ok) {
+            listEl.innerHTML = '<p class="text-muted">Failed to load license keys</p>';
+            return;
+        }
+
+        const data = await r.json();
+        licensePagination = data.pagination || licensePagination;
+
+        // Update statistics
+        if (data.statistics) {
+            document.getElementById('license-total').textContent = data.statistics.total;
+            document.getElementById('license-unused').textContent = data.statistics.unused;
+            document.getElementById('license-used').textContent = data.statistics.used;
+            const usageRate = data.statistics.total > 0
+                ? ((data.statistics.used / data.statistics.total) * 100).toFixed(1)
+                : 0;
+            document.getElementById('license-usage').textContent = usageRate + '%';
+        }
+
+        // Render license keys
+        if (!data.licenses || data.licenses.length === 0) {
+            listEl.innerHTML = '<p class="text-muted">No license keys found</p>';
+        } else {
+            listEl.innerHTML = '<div class="payments-list">' + data.licenses.map(lic => {
+                const statusColor = lic.is_used ? '#ef4444' : '#22c55e';
+                const statusText = lic.is_used ? 'USED' : 'AVAILABLE';
+                const usedBy = lic.used_by_username ? `<div style="font-size:11px;color:#666;margin-top:4px;">Used by: ${escapeHtml(lic.used_by_username)} on ${formatDate(lic.used_at)}</div>` : '';
+
+                return `
+                    <div class="payment-item">
+                        <div class="payment-info">
+                            <h4 style="font-family:monospace;font-size:16px;">${escapeHtml(lic.license_key)}
+                                <span style="background:${lic.is_used ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)'};border:1px solid ${statusColor};border-radius:4px;padding:1px 7px;font-size:11px;color:${statusColor};margin-left:8px;">${statusText}</span>
+                            </h4>
+                            <div style="font-size:12px;color:#666;margin-top:4px;">
+                                Created: ${formatDate(lic.created_at)}
+                                ${lic.notes ? `<span style="margin-left:15px;">Notes: ${escapeHtml(lic.notes)}</span>` : ''}
+                            </div>
+                            ${usedBy}
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-sm btn-outline" onclick="copyToClipboard('${escapeHtml(lic.license_key)}')">📋 Copy</button>
+                        </div>
+                    </div>
+                `;
+            }).join('') + '</div>';
+        }
+
+        // Update pagination
+        const pagerMeta = document.getElementById('license-page-meta');
+        if (pagerMeta) {
+            pagerMeta.textContent = `Page ${licensePagination.page} of ${licensePagination.pages}`;
+        }
+
+    } catch (e) {
+        console.error('License load error:', e);
+        listEl.innerHTML = '<p class="text-muted">Error loading license keys</p>';
+    }
+}
+
+function changeLicensePage(delta) {
+    const nextPage = licensePagination.page + delta;
+    if (nextPage < 1 || nextPage > licensePagination.pages) return;
+    licensePagination.page = nextPage;
+    loadLicenseKeys();
+}
+
+function openGenerateLicenseModal() {
+    const modal = document.getElementById('generate-license-modal');
+    if (modal) {
+        document.getElementById('license-count').value = 10;
+        document.getElementById('license-notes').value = '';
+        document.getElementById('generated-keys-output').style.display = 'none';
+        modal.classList.add('active');
+    }
+}
+
+async function generateLicenseKeys(event) {
+    event.preventDefault();
+
+    const count = parseInt(document.getElementById('license-count').value);
+    const notes = document.getElementById('license-notes').value;
+
+    if (count < 1 || count > 100) {
+        alert('Please enter a number between 1 and 100');
+        return;
+    }
+
+    try {
+        const r = await apiFetch(`${API_BASE}/api/admin/licenses/generate`, {
+            method: 'POST',
+            body: JSON.stringify({ count, notes })
+        });
+
+        if (!r.ok) {
+            const error = await r.json();
+            alert('Error: ' + (error.error || 'Failed to generate keys'));
+            return;
+        }
+
+        const data = await r.json();
+
+        // Show generated keys
+        const output = document.getElementById('generated-keys-output');
+        const textarea = document.getElementById('generated-keys-text');
+
+        textarea.value = data.keys.join('\n');
+        output.style.display = 'block';
+
+        // Reload license list
+        await loadLicenseKeys();
+
+        alert(`✅ Generated ${data.count} license keys successfully!`);
+    } catch (e) {
+        console.error('Generate error:', e);
+        alert('Error generating license keys');
+    }
+}
+
+function copyGeneratedKeys() {
+    const textarea = document.getElementById('generated-keys-text');
+    textarea.select();
+    document.execCommand('copy');
+    alert('✅ License keys copied to clipboard!');
+}
+
+async function downloadLicenseKeys(status) {
+    try {
+        const url = `${API_BASE}/api/admin/licenses/download?status=${status}`;
+        window.location.href = url;
+    } catch (e) {
+        console.error('Download error:', e);
+        alert('Error downloading license keys');
+    }
+}
+
+function copyToClipboard(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    alert('✅ Copied: ' + text);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    await Promise.all([loadTrainersAndPolicies(), loadPayouts(), loadNotificationHistory(), loadEmailLogs()]);
+    await Promise.all([loadTrainersAndPolicies(), loadPayouts(), loadNotificationHistory(), loadEmailLogs(), loadLicenseKeys()]);
 
     // Auto-refresh admin data every 60 seconds
     setInterval(() => {

@@ -2,6 +2,10 @@ from datetime import datetime, timedelta
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from .database import db
+
+# Import license model
+from .models_license import LicenseKey
+
 ADMIN_DATA_OWNER_USERNAME = '__admin_owner__'
 class AdminUser(UserMixin):
     """In-memory admin account used for full-system access."""

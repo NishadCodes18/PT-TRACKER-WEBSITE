@@ -11,6 +11,7 @@ from werkzeug.security import check_password_hash
 from ..database import db
 from ..extensions import limiter
 from ..models import AdminUser, EmailLog, PasswordResetOTP, Trainer, TwoFactorAuth
+from ..models_license import LicenseKey
 from ..utils.mail import send_html_email
 from ..utils.security_helpers import is_safe_redirect_url
 
@@ -320,6 +321,22 @@ def register():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
         confirm_password = request.form.get('confirm_password', '')
+        license_key = request.form.get('license_key', '').strip()
+
+        # Validate license key first
+        if not license_key:
+            flash('License key is required to create an account', 'error')
+            return render_template('register.html')
+
+        # Check if license key exists and is valid
+        license_record = LicenseKey.query.filter_by(license_key=license_key).first()
+        if not license_record:
+            flash('Invalid license key', 'error')
+            return render_template('register.html')
+
+        if license_record.is_used:
+            flash('This license key has already been used', 'error')
+            return render_template('register.html')
 
         if not username or not email or not password:
             flash('Username, email, and password are required', 'error')
@@ -350,11 +367,17 @@ def register():
             flash('Email already registered', 'error')
             return render_template('register.html')
 
+        # Create trainer account
         trainer = Trainer(username=username, email=email)
         trainer.set_password(password)
         db.session.add(trainer)
+        db.session.flush()  # Get trainer.id before marking license as used
+
+        # Mark license key as used
+        license_record.mark_as_used(trainer.id)
         db.session.commit()
-        flash('Account created! Please login.', 'success')
+
+        flash('Account created successfully! Please login.', 'success')
         return redirect(url_for('auth.login'))
 
     return render_template('register.html')

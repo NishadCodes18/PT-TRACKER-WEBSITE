@@ -186,7 +186,93 @@
                 </div>
             </div>
         </section>
+
+        <section class="card">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h2>🔑 License Key Management</h2>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-sm btn-outline" onclick="loadLicenseKeys()">🔄 Refresh</button>
+                    <button class="btn btn-sm btn-primary" onclick="openGenerateLicenseModal()">➕ Generate Keys</button>
+                    <button class="btn btn-sm btn-success" onclick="downloadLicenseKeys('unused')">⬇️ Download Unused</button>
+                    <button class="btn btn-sm btn-outline" onclick="downloadLicenseKeys('all')">⬇️ Download All</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="license-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+                    <div style="padding:15px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;">
+                        <div style="font-size:12px;color:#666;margin-bottom:5px;">Total Keys</div>
+                        <div style="font-size:24px;font-weight:600;color:#22c55e;" id="license-total">0</div>
+                    </div>
+                    <div style="padding:15px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;">
+                        <div style="font-size:12px;color:#666;margin-bottom:5px;">Available</div>
+                        <div style="font-size:24px;font-weight:600;color:#3b82f6;" id="license-unused">0</div>
+                    </div>
+                    <div style="padding:15px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;">
+                        <div style="font-size:12px;color:#666;margin-bottom:5px;">Used</div>
+                        <div style="font-size:24px;font-weight:600;color:#ef4444;" id="license-used">0</div>
+                    </div>
+                    <div style="padding:15px;background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:8px;">
+                        <div style="font-size:12px;color:#666;margin-bottom:5px;">Usage Rate</div>
+                        <div style="font-size:24px;font-weight:600;color:#fbbf24;" id="license-usage">0%</div>
+                    </div>
+                </div>
+
+                <div style="display:flex;gap:10px;margin-bottom:20px;">
+                    <select id="license-status-filter" onchange="loadLicenseKeys()" style="flex:1;min-width:150px;">
+                        <option value="all">All Keys</option>
+                        <option value="unused" selected>Unused Only</option>
+                        <option value="used">Used Only</option>
+                    </select>
+                </div>
+
+                <div id="license-keys-list">
+                    <p class="text-muted">Loading license keys...</p>
+                </div>
+
+                <div class="pager" id="license-pager" style="margin-top:20px;">
+                    <button class="btn btn-sm btn-outline" onclick="changeLicensePage(-1)">Prev</button>
+                    <span class="text-muted" id="license-page-meta">Page 1</span>
+                    <button class="btn btn-sm btn-outline" onclick="changeLicensePage(1)">Next</button>
+                </div>
+            </div>
+        </section>
     </main>
+
+    <!-- Generate License Modal -->
+    <div id="generate-license-modal" class="modal">
+        <div class="modal-content" style="max-width:500px;">
+            <h3 id="generate-license-modal-title">Generate License Keys</h3>
+            <form id="generate-license-form" onsubmit="generateLicenseKeys(event)">
+                <div class="form-group">
+                    <label for="license-count">Number of Keys</label>
+                    <input type="number" id="license-count" min="1" max="100" value="10" required>
+                    <small class="text-muted">Maximum 100 keys per batch</small>
+                </div>
+                <div class="form-group">
+                    <label for="license-notes">Notes (Optional)</label>
+                    <input type="text" id="license-notes" placeholder="e.g., Batch for June 2026">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary">Generate Keys</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('generate-license-modal')">Cancel</button>
+                </div>
+            </form>
+            <div id="generated-keys-output" style="display:none;margin-top:20px;">
+                <h4>Generated Keys:</h4>
+                <textarea id="generated-keys-text" readonly style="width:100%;height:200px;font-family:monospace;font-size:12px;padding:10px;"></textarea>
+                <button class="btn btn-sm btn-outline" onclick="copyGeneratedKeys()">📋 Copy All Keys</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <footer style="background: var(--bg-elevated); border-top: 1px solid var(--border-glow); padding: 20px; text-align: center; margin-top: 40px;">
+        <p style="margin: 0; color: var(--text-muted); font-size: 14px;">
+            <strong style="color: var(--text-primary);">PT Tracker Admin Panel v1.1</strong>
+        </p>
+        <p style="margin: 8px 0 0 0; color: var(--text-muted); font-size: 12px;">
+            Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong> • <a href="mailto:nishadpatil2008@gmail.com" style="color: var(--accent); text-decoration: none;">nishadpatil2008@gmail.com</a>
+        </p>
+    </footer>
 </body>
 </html>

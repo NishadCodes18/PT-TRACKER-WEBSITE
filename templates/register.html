@@ -25,6 +25,10 @@
             <form method="POST" action="{{ url_for('auth.register') }}" class="auth-form">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="form-group">
+                    <label for="license_key">License Key</label>
+                    <input type="text" id="license_key" name="license_key" required placeholder="Enter your license key">
+                </div>
+                <div class="form-group">
                     <label for="username">Username</label>
                     <input type="text" id="username" name="username" required minlength="3" placeholder="Choose a username">
                 </div>
@@ -42,11 +46,12 @@
                 </div>
                 <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px; padding:14px;">💪 Create Account</button>
             </form>
-            <p class="auth-note">Use a strong password and make sure the email on your profile is correct for account recovery.</p>
+            <p class="auth-note">A valid license key is required to create an account. Contact the administrator for a license key.</p>
             <div class="auth-footer">
                 <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
                 <p style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-glow); color: var(--text-muted); font-size: 12px;">
-                    Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong>
+                    Made with 💪 by <strong style="color: var(--accent);">Nishad Patil</strong><br>
+                    <span style="font-size: 11px; color: var(--text-muted); margin-top: 4px; display: inline-block;">Contact: <a href="mailto:nishadpatil2008@gmail.com" style="color: var(--accent); text-decoration: none;">nishadpatil2008@gmail.com</a></span>
                 </p>
             </div>
         </div>
