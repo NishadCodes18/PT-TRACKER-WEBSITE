@@ -237,13 +237,17 @@ def create_app(config_class=Config):
         return jsonify({"ok": True, "status": "healthy"})
 
     @app.route("/favicon.ico")
+    @app.route("/favicon.png")
     def favicon():
         """Handle favicon requests to prevent 404 errors in logs"""
         from flask import send_from_directory
         import os
-        favicon_path = os.path.join(app.static_folder, 'favicon.ico')
-        if os.path.exists(favicon_path):
-            return send_from_directory(app.static_folder, 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+        # Try both .ico and .png
+        for filename in ['favicon.ico', 'favicon.png']:
+            favicon_path = os.path.join(app.static_folder, filename)
+            if os.path.exists(favicon_path):
+                mimetype = 'image/vnd.microsoft.icon' if filename.endswith('.ico') else 'image/png'
+                return send_from_directory(app.static_folder, filename, mimetype=mimetype)
         # Return 204 No Content if favicon doesn't exist
         return '', 204
 
