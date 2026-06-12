@@ -42,6 +42,9 @@ dist/
 .DS_Store
 Thumbs.db
 
+# Node modules
+node_modules/
+
 # Vercel
 .vercel
 .vercel/

@@ -1,0 +1,9 @@
+{
+  "name": "pt-tracker-website",
+  "version": "1.0.0",
+  "description": "Personal Training Gym Tracker with Vercel Speed Insights",
+  "private": true,
+  "dependencies": {
+    "@vercel/speed-insights": "^1.0.12"
+  }
+}
