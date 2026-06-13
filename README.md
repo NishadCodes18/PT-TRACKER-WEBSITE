@@ -2,7 +2,7 @@
 
 > **Professional Personal Training Management System for Freelance Trainers in India**
 
-**Version:** 1.0 (Production Ready)  
+**Version:** 1.1 (Production Ready)  
 **Status:** ✅ Complete  
 **Made by:** Nishad Patil  
 **Contact:** nishadpatil2008@gmail.com  

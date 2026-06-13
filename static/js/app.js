@@ -569,7 +569,6 @@ async function loadClients(force = false) {
         listEl.innerHTML = renderClients(state.clients);
         updatePager("clients-page-meta", state.clientsPagination);
         populateClientsDropdownFromCache();
-        populateGalleryClientDropdown();
     } catch (e) {
         console.error("Clients error:", e);
     }
@@ -633,15 +632,6 @@ function populateClientsDropdownFromCache() {
             )
             .join("");
     if (current) select.value = current;
-}
-
-function populateGalleryClientDropdown() {
-    const select = document.getElementById("gallery-client");
-    if (!select) return;
-    const options = (state.clients || [])
-        .map((c) => `<option value="${c.id}">${escapeHtml(c.name)}</option>`)
-        .join("");
-    select.innerHTML = options || '<option value="">No clients loaded</option>';
 }
 
 function populateClientTrainerDropdown(trainers, selectedTrainerId = "") {
@@ -857,8 +847,14 @@ async function handleClientSubmit(event) {
             showToast("Client updated successfully!", "success");
         }
 
-        Cache.invalidate("stats", "insights");
-        await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
+        // Optimized: Invalidate cache and reload only what's necessary
+        Cache.invalidate("stats", "insights", "clients");
+
+        // Load clients first (main data), then stats in background
+        loadClients(true).then(() => {
+            loadStats(true);
+            loadInsights(true);
+        });
     } catch (e) {
         console.error(e);
         alert("Error saving client");
@@ -934,8 +930,15 @@ async function deleteClient(id, permanent = false) {
                 return;
             }
             showToast(`Client "${clientName}" permanently deleted`, "success");
-            Cache.invalidate("stats", "insights");
-            await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
+
+            // Optimized: Remove from local state immediately for instant UI update
+            state.clients = state.clients.filter(c => c.id !== id);
+            renderClients();
+
+            // Invalidate cache and refresh in background
+            Cache.invalidate("stats", "insights", "clients");
+            loadStats(true);
+            loadInsights(true);
         } catch (e) {
             console.error(e);
             alert("Error deleting client");
@@ -954,8 +957,14 @@ async function deleteClient(id, permanent = false) {
                 return;
             }
             showToast(`Client "${clientName}" permanently deleted`, "success");
-            Cache.invalidate("stats", "insights");
-            await Promise.all([loadClients(true), loadPayments(true), loadStats(true), loadInsights(true)]);
+
+            // Optimized: Remove from local state immediately
+            state.clients = state.clients.filter(c => c.id !== id);
+            renderClients();
+
+            Cache.invalidate("stats", "insights", "clients");
+            loadStats(true);
+            loadInsights(true);
         } catch (e) {
             console.error(e);
             alert("Error deleting client");
@@ -975,8 +984,17 @@ async function deleteClient(id, permanent = false) {
             return;
         }
         showToast("Client moved to Lost section", "success");
-        Cache.invalidate("stats", "insights");
-        await Promise.all([loadClients(true), loadStats(true), loadInsights(true)]);
+
+        // Optimized: Update local state immediately
+        const clientIndex = state.clients.findIndex(c => c.id === id);
+        if (clientIndex !== -1) {
+            state.clients[clientIndex].status = "lost";
+            renderClients();
+        }
+
+        Cache.invalidate("stats", "insights", "clients");
+        loadStats(true);
+        loadInsights(true);
     } catch (e) {
         console.error(e);
     }
@@ -1000,7 +1018,7 @@ async function handlePaymentSubmit(event) {
 
     let finalDescription = description;
     const paymentMode = document.getElementById("payment-mode")?.value || "cash";
-    
+
     if (paymentMode === "split") {
         const cashAmount = parseFloat(document.getElementById("payment-cash-amount")?.value || "0");
         const onlineAmount = parseFloat(document.getElementById("payment-online-amount")?.value || "0");
@@ -1034,9 +1052,19 @@ async function handlePaymentSubmit(event) {
             alert(await readErrorMessage(r, "Error saving payment"));
             return;
         }
+
         closeModal("payment-modal");
-        Cache.invalidate("stats", "insights");
-        await Promise.all([loadPayments(true), loadClients(true), loadStats(true), loadInsights(true)]);
+        showToast("Payment logged successfully!", "success");
+
+        // Optimized: Invalidate cache and load sequentially
+        Cache.invalidate("stats", "insights", "payments", "clients");
+
+        // Load payments first (immediate), then stats in background
+        loadPayments(true).then(() => {
+            loadClients(true);
+            loadStats(true);
+            loadInsights(true);
+        });
     } catch (e) {
         console.error(e);
         alert("Error saving payment");
@@ -1071,8 +1099,15 @@ async function deletePayment(id, permanent = false) {
             return;
         }
         showToast(permanent ? "Payment permanently deleted" : "Payment deleted", "success");
-        Cache.invalidate("stats", "insights");
-        await Promise.all([loadPayments(true), loadStats(true), loadInsights(true)]);
+
+        // Optimized: Remove from local state immediately for instant UI update
+        state.payments = state.payments.filter(p => p.id !== id);
+        renderPayments();
+
+        // Invalidate cache and refresh stats in background
+        Cache.invalidate("stats", "insights", "payments");
+        loadStats(true);
+        loadInsights(true);
     } catch (e) {
         console.error(e);
         alert("Error deleting payment");
@@ -1187,97 +1222,6 @@ async function loadAttendanceFeed() {
     } catch (e) {
         console.error(e);
         container.innerHTML = '<p class="text-muted">Unable to load attendance feed</p>';
-    }
-}
-
-async function loadGallery() {
-    const container = document.getElementById("gallery-list");
-    const clientEl = document.getElementById("gallery-client");
-    if (!container || !clientEl || !clientEl.value) {
-        if (container) container.innerHTML = '<p class="text-muted">Select client to view gallery</p>';
-        return;
-    }
-
-    container.innerHTML = '<p class="text-muted">Loading gallery...</p>';
-    try {
-        const r = await apiFetch(`${API_BASE}/api/tracking/gallery/${clientEl.value}`);
-        const data = await r.json();
-        if (!r.ok) {
-            container.innerHTML = `<p class="text-muted">${escapeHtml(data.error || "Unable to load gallery")}</p>`;
-            return;
-        }
-        if (!data.images.length) {
-            container.innerHTML = '<p class="text-muted">No progress photos yet.</p>';
-            return;
-        }
-        container.innerHTML = data.images
-            .map(
-                (img) => `
-            <div class="gallery-card" style="position:relative;">
-                <button onclick="deleteGalleryImage(${img.id})" style="position:absolute; top:8px; right:8px; background:rgba(239,68,68,0.9); color:white; border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; box-shadow:0 2px 4px rgba(0,0,0,0.2);" title="Delete Photo">✕</button>
-                <img src="${escapeHtml(img.image_path)}" alt="Progress photo" loading="lazy">
-                <div class="gallery-meta">
-                    <div>${escapeHtml(img.caption || "No caption")}</div>
-                    <div>${formatDate(img.upload_date)}</div>
-                </div>
-            </div>
-        `,
-            )
-            .join("");
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = '<p class="text-muted">Unable to load gallery.</p>';
-    }
-}
-
-async function deleteGalleryImage(id) {
-    if (!confirm("Are you sure you want to delete this photo?")) return;
-    try {
-        const r = await apiFetch(`${API_BASE}/api/tracking/gallery/image/${id}`, { method: "DELETE" });
-        if (r.ok) {
-            await loadGallery();
-        } else {
-            const data = await r.json();
-            alert(data.error || "Failed to delete photo.");
-        }
-    } catch (e) {
-        console.error(e);
-        alert("Failed to delete photo.");
-    }
-}
-
-async function addGalleryImage() {
-    const clientEl = document.getElementById("gallery-client");
-    const imageFile = document.getElementById("gallery-image-file");
-    const caption = document.getElementById("gallery-caption");
-    
-    if (!clientEl || !imageFile || !imageFile.files || !imageFile.files[0]) {
-        alert("Select a client and provide an image file.");
-        return;
-    }
-
-    const formData = new FormData();
-    formData.append('image', imageFile.files[0]);
-    if (caption && caption.value) {
-        formData.append('caption', caption.value);
-    }
-
-    try {
-        const r = await apiFetch(`${API_BASE}/api/tracking/gallery/${clientEl.value}`, {
-            method: "POST",
-            body: formData,
-        });
-        const data = await r.json();
-        if (!r.ok) {
-            alert(data.error || "Could not add gallery image.");
-            return;
-        }
-        imageFile.value = "";
-        if (caption) caption.value = "";
-        await loadGallery();
-    } catch (e) {
-        console.error(e);
-        alert("Could not add gallery image.");
     }
 }
 
@@ -1551,9 +1495,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         IS_ADMIN ? loadImpersonateDropdown() : Promise.resolve(),
         checkImpersonationStatus(),
     ]);
-
-    const galleryClient = document.getElementById("gallery-client");
-    if (galleryClient) galleryClient.addEventListener("change", () => loadGallery());
 
     // Auto-refresh notifications every 30 seconds
     setInterval(() => {

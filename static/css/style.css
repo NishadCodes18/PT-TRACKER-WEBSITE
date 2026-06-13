@@ -613,32 +613,6 @@ body {
     padding: 10px 14px;
 }
 
-#gallery-list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-    gap: 10px;
-}
-
-.gallery-card {
-    border: 1px solid var(--border);
-    background: var(--bg-elevated);
-    border-radius: 10px;
-    overflow: hidden;
-}
-
-.gallery-card img {
-    width: 100%;
-    height: 90px;
-    object-fit: cover;
-    display: block;
-}
-
-.gallery-meta {
-    padding: 8px;
-    font-size: 11px;
-    color: var(--text-muted);
-}
-
 /* Email logs scrollable container - compact layout */
 #email-logs-list {
     max-height: 400px;
