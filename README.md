@@ -2,7 +2,7 @@
 
 > **Professional PT Management System for Freelance Trainers in India**
 
-**Version:** 1.0
+**Version:** 1.1  
 **Status:** ✅ Production Ready  
 **Made by:** Nishad Patil  
 **Contact:** nishadpatil2008@gmail.com  
@@ -148,7 +148,7 @@ git push origin main
 
 ---
 
-## 🔧 Recent Updates (v1.2 - June 2026)
+## 🔧 Recent Updates (v1.1 - June 2026)
 
 ### Performance Improvements
 - **80-90% faster updates** - Optimized data refresh flow
