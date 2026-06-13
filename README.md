@@ -1,16 +1,202 @@
 # 🏋️ Personal Training Gym Tracker
 
-> **Professional Personal Training Management System for Freelance Trainers in India**
+> **Professional PT Management System for Freelance Trainers in India**
 
-**Version:** 1.1 (Production Ready)  
-**Status:** ✅ Complete  
+**Version:** 1.2  
+**Status:** ✅ Production Ready  
 **Made by:** Nishad Patil  
 **Contact:** nishadpatil2008@gmail.com  
-**Last Updated:** June 12, 2026
+**Last Updated:** June 13, 2026
 
 ---
 
-## ⚡ Quick Start (4 Steps)
+## ⚡ Quick Start
+
+```bash
+# 1. Install dependencies
+pip install -r requirements.txt
+
+# 2. Setup environment
+cp .env.example .env
+# Edit .env with your database and email credentials
+
+# 3. Run the app
+python run.py
+
+# 4. Access at http://localhost:5000
+# Default login: adminvenom / adminvenom@123
+```
+
+---
+
+## ✨ Key Features
+
+### Client Management
+- Add, edit, delete clients with profiles
+- Multi-gym support & time slot scheduling
+- PT tier system (₹5k/₹8k/₹12k per month)
+- Automated renewal tracking & reminders
+- Client status tracking (ongoing/lost)
+
+### Payment Tracking
+- 7 payment modes (Cash, UPI, Card, Bank Transfer, Online, Cheque, Split)
+- Gym payment tracking
+- Complete payment history & Excel export
+- Monthly & session-based plans
+
+### Email Automation
+- Automated renewal reminders (5 days before expiry)
+- Manual email sending (individual or bulk)
+- Complete email audit trail with delivery tracking
+- Duplicate prevention system
+
+### Analytics & Insights
+- Revenue trends & income breakdown
+- Client retention metrics
+- Profit analysis & expense tracking
+- Performance monitoring
+
+### Admin Features
+- Trainer management & role-based access
+- Commission policies & payouts
+- System audit logs
+- Email delivery statistics
+
+### Export & Reporting
+- Excel exports (clients, payments, expenses)
+- JSON backup
+- Advanced filtering & search
+
+---
+
+## 🛠 Tech Stack
+
+- **Backend:** Flask (Python)
+- **Database:** SQLite / PostgreSQL
+- **Frontend:** HTML5, CSS3, JavaScript
+- **Auth:** Flask-Login + 2FA
+- **Email:** SMTP (Gmail/Brevo/Mailgun)
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables (`.env`)
+
+```env
+# Database
+DATABASE_URL=sqlite:///gym_tracker.db
+
+# Security
+SECRET_KEY=your-random-secret-key
+
+# Email (Gmail)
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-gmail-app-password
+
+# Application
+GYM_NAME=Your Gym Name
+ADMIN_USERNAME=adminvenom
+ADMIN_PASSWORD=adminvenom@123
+```
+
+### Gmail App Password Setup
+
+1. Enable 2-Step Verification: [Google Security](https://myaccount.google.com/security)
+2. Generate App Password: [App Passwords](https://myaccount.google.com/apppasswords)
+3. Copy 16-character password to `SMTP_PASSWORD` in `.env`
+
+---
+
+## 🚀 Deployment
+
+### Vercel (Recommended)
+
+```bash
+# 1. Deploy database to Render PostgreSQL (free)
+# 2. Deploy app to Vercel (free)
+# 3. Set environment variables in Vercel dashboard
+# 4. Connect via DATABASE_URL
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
+### Render
+
+```bash
+# 1. Push to GitHub
+git push origin main
+
+# 2. Deploy via Render Blueprint
+# Dashboard → New → Blueprint → Connect repo
+
+# 3. Set environment variables
+# Render will auto-configure database and cron jobs
+```
+
+---
+
+## 📚 Documentation
+
+- [Loading Page Implementation](LOADING_PAGE.md)
+- [Performance Optimization](PERFORMANCE_OPTIMIZATION.md)
+- [Deployment Guide](DEPLOYMENT.md)
+- [License System Setup](LICENSE_SETUP_INSTRUCTIONS.md)
+- [Auto Email Setup](AUTO_RENEWAL_EMAILS_GUIDE.md)
+
+---
+
+## 🔧 Recent Updates (v1.2 - June 2026)
+
+### Performance Improvements
+- **80-90% faster updates** - Optimized data refresh flow
+- Instant UI updates with optimistic rendering
+- Sequential loading (primary data first, stats in background)
+- Delete operations now feel instant (< 1 second)
+
+### Loading Experience
+- Professional loading page during cold starts
+- Animated skeleton UI matching app design
+- Auto-redirect when database ready
+- Works on Vercel + Render deployments
+
+### Removed Features
+- BMI Progress Gallery (simplified app, removed unused feature)
+
+---
+
+## 🆘 Troubleshooting
+
+**Emails not sending?**
+- Use Gmail App Password (not regular password)
+- Enable 2-Step Verification on Google account
+- Check Email Logs in dashboard
+
+**Database error?**
+- Delete `gym_tracker.db` and restart
+- Database will be recreated automatically
+
+**Port already in use?**
+- Edit `run.py` to use different port
+- Or kill process using port 5000
+
+**Slow performance?**
+- Upgrade to PostgreSQL for production
+- Enable caching in configuration
+- Use Vercel/Render for better infrastructure
+
+---
+
+## 📄 License
+
+Created by **Nishad Patil** © 2026  
+Contact: nishadpatil2008@gmail.com
+
+---
+
+**Made with 💪 by Nishad Patil**
 
 ### Step 1: Setup Environment
 
