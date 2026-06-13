@@ -2,7 +2,7 @@
 
 > **Professional PT Management System for Freelance Trainers in India**
 
-**Version:** 1.2  
+**Version:** 1.0
 **Status:** ✅ Production Ready  
 **Made by:** Nishad Patil  
 **Contact:** nishadpatil2008@gmail.com  
