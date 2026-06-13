@@ -2,7 +2,7 @@ import logging
 import os
 import time
 
-from flask import Flask, g, jsonify, redirect, request, url_for
+from flask import Flask, g, jsonify, redirect, render_template, request, url_for
 from flask_login import LoginManager, current_user
 from sqlalchemy import text
 from werkzeug.exceptions import HTTPException
@@ -84,6 +84,9 @@ def create_app(config_class=Config):
     )
     app.config.from_object(config_class)
 
+    # Track database initialization state
+    app.config['DB_INITIALIZED'] = False
+
     if app.config.get("SECRET_KEY") == "dev-secret-key-change-in-prod" and app.config.get("IS_PRODUCTION"):
         raise RuntimeError("Set a strong SECRET_KEY environment variable before running in production.")
 
@@ -114,6 +117,35 @@ def create_app(config_class=Config):
         from flask_wtf.csrf import generate_csrf
 
         return dict(csrf_token=generate_csrf)
+
+    @app.before_request
+    def check_db_initialization():
+        """Show loading page if database is not ready yet"""
+        # Skip for static files, health check, and loading page itself
+        if (request.path.startswith('/static/') or
+            request.path == '/health' or
+            request.path == '/favicon.ico' or
+            request.path == '/favicon.png'):
+            return None
+
+        # If database not initialized, try to initialize it now
+        if not app.config.get('DB_INITIALIZED', False):
+            try:
+                app.logger.info("[RETRY] Attempting database initialization on first request...")
+                connection = db.engine.connect()
+                connection.close()
+                db.create_all()
+
+                if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite"):
+                    _run_sqlite_compat_migrations()
+
+                app.config['DB_INITIALIZED'] = True
+                app.logger.info("[OK] Database initialized successfully on first request")
+                return None  # Continue with the request
+            except Exception as e:
+                app.logger.error(f"[ERROR] Database initialization failed: {e}")
+                # Show loading page with 503 status
+                return render_template('loading.html'), 503
 
     @app.after_request
     def _add_security_headers(response):
@@ -159,6 +191,9 @@ def create_app(config_class=Config):
                 _run_sqlite_compat_migrations()
                 app.logger.info("[OK] Migrations complete")
                 print("[OK] Migrations complete")
+
+            # Mark database as initialized
+            app.config['DB_INITIALIZED'] = True
         except Exception as e:
             error_msg = f"[ERROR] DATABASE ERROR: {e}"
             app.logger.error(error_msg, exc_info=True)
@@ -255,11 +290,19 @@ def create_app(config_class=Config):
 
     @app.route("/")
     def index():
+        # Show loading page if database not initialized yet
+        if not app.config.get('DB_INITIALIZED', False):
+            return render_template('loading.html')
         return redirect(url_for("dashboard.main"))
 
     @app.route("/health")
     def health():
-        return jsonify({"ok": True, "status": "healthy"})
+        db_ready = app.config.get('DB_INITIALIZED', False)
+        return jsonify({
+            "ok": db_ready,
+            "status": "healthy" if db_ready else "initializing",
+            "db_initialized": db_ready
+        })
 
     @app.route("/favicon.ico")
     @app.route("/favicon.png")

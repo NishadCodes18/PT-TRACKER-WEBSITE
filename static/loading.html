@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading - PT Tracker</title>
+    <meta http-equiv="refresh" content="3;url=/">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Orbitron:wght@700;900&display=swap');
+
+        :root {
+            --primary: #f97316;
+            --accent: #facc15;
+            --bg-base: #0a0a0f;
+            --bg-card: #111118;
+            --bg-elevated: #1a1a24;
+            --border: rgba(255,255,255,0.08);
+            --text: #f1f5f9;
+            --text-muted: #64748b;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', -apple-system, sans-serif;
+            background: var(--bg-base);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: 'NZ';
+            position: absolute;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 40vw;
+            font-weight: 900;
+            color: rgba(249,115,22,0.03);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%,-50%);
+            pointer-events: none;
+            user-select: none;
+            line-height: 1;
+            z-index: 0;
+        }
+
+        .loading-container {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            max-width: 500px;
+            padding: 20px;
+        }
+
+        .loading-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 24px;
+            margin-bottom: 24px;
+            font-size: 56px;
+            box-shadow: 0 8px 32px rgba(249,115,22,0.3);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(249,115,22,0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 12px 48px rgba(249,115,22,0.5); }
+        }
+
+        .loading-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 28px;
+            font-weight: 900;
+            color: var(--primary);
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .loading-subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+        }
+
+        .loading-bar-container {
+            width: 100%;
+            height: 4px;
+            background: var(--bg-card);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+
+        .loading-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), var(--accent), var(--primary));
+            background-size: 200% 100%;
+            animation: loading 1.5s ease-in-out infinite;
+            border-radius: 999px;
+        }
+
+        @keyframes loading {
+            0% { width: 0%; background-position: 0% 50%; }
+            50% { width: 70%; background-position: 100% 50%; }
+            100% { width: 100%; background-position: 0% 50%; }
+        }
+
+        .loading-message {
+            font-size: 14px;
+            color: var(--text-muted);
+            animation: fadeInOut 2s ease-in-out infinite;
+            min-height: 20px;
+        }
+
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .stats-skeleton {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .stat-skeleton {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-icon-skeleton {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card) 50%, var(--bg-elevated) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 8px;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .stat-text-skeleton {
+            height: 10px;
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card) 50%, var(--bg-elevated) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value-skeleton {
+            height: 16px;
+            background: linear-gradient(90deg, var(--bg-elevated) 25%, var(--bg-card) 50%, var(--bg-elevated) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 4px;
+            width: 80%;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            .loading-logo {
+                width: 100px;
+                height: 100px;
+                font-size: 48px;
+            }
+            .loading-title {
+                font-size: 24px;
+            }
+            .stats-skeleton {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-container">
+        <div class="loading-logo">💪</div>
+        <h1 class="loading-title">PT Tracker</h1>
+        <p class="loading-subtitle">Professional PT Management System</p>
+
+        <div class="loading-bar-container">
+            <div class="loading-bar"></div>
+        </div>
+
+        <p class="loading-message" id="loading-msg">Starting application...</p>
+
+        <div class="stats-skeleton">
+            <div class="stat-skeleton">
+                <div class="stat-icon-skeleton"></div>
+                <div class="stat-text-skeleton"></div>
+                <div class="stat-value-skeleton"></div>
+            </div>
+            <div class="stat-skeleton">
+                <div class="stat-icon-skeleton"></div>
+                <div class="stat-text-skeleton"></div>
+                <div class="stat-value-skeleton"></div>
+            </div>
+            <div class="stat-skeleton">
+                <div class="stat-icon-skeleton"></div>
+                <div class="stat-text-skeleton"></div>
+                <div class="stat-value-skeleton"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const messages = [
+            'Starting application...',
+            'Connecting to database...',
+            'Loading your workspace...',
+            'Almost ready...'
+        ];
+        let msgIdx = 0;
+        const msgEl = document.getElementById('loading-msg');
+
+        setInterval(() => {
+            msgIdx = (msgIdx + 1) % messages.length;
+            msgEl.textContent = messages[msgIdx];
+        }, 1500);
+
+        let attempts = 0;
+        function checkReady() {
+            fetch('/health')
+                .then(r => r.json())
+                .then(d => {
+                    if (d.ok && d.db_initialized) {
+                        window.location.href = '/';
+                    } else if (attempts++ < 40) {
+                        setTimeout(checkReady, 1000);
+                    } else {
+                        window.location.href = '/';
+                    }
+                })
+                .catch(() => {
+                    if (attempts++ < 40) {
+                        setTimeout(checkReady, 1500);
+                    } else {
+                        window.location.href = '/';
+                    }
+                });
+        }
+
+        setTimeout(checkReady, 800);
+    </script>
+</body>
+</html>
