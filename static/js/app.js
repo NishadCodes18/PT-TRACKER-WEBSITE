@@ -111,11 +111,130 @@ async function apiFetch(url, opts = {}) {
     const merged = { ...opts, headers, credentials: "same-origin" };
     const isCacheableGet = method === "GET" && !opts.body && Object.keys(opts).length <= 1;
     if (isCacheableGet && inflight[url]) return inflight[url];
-    const req = fetch(url, merged).finally(() => {
-        delete inflight[url];
-    });
+
+    const req = fetch(url, merged)
+        .catch(error => {
+            // Network error - backend might be waking up
+            if (error.name === 'TypeError' && error.message.includes('fetch')) {
+                console.warn('Backend connection failed, might be cold start:', error);
+                showBackendWakeupUI();
+            }
+            throw error;
+        })
+        .finally(() => {
+            delete inflight[url];
+        });
+
     if (isCacheableGet) inflight[url] = req;
     return req;
+}
+
+let backendWakeupShown = false;
+function showBackendWakeupUI() {
+    if (backendWakeupShown) return;
+    backendWakeupShown = true;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'backend-wakeup-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(10, 10, 15, 0.95);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        backdrop-filter: blur(8px);
+    `;
+
+    overlay.innerHTML = `
+        <div style="text-align: center; max-width: 500px; padding: 20px;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; width: 100px; height: 100px; background: linear-gradient(135deg, #f97316, #facc15); border-radius: 20px; margin-bottom: 20px; font-size: 48px; animation: pulse 2s ease-in-out infinite;">
+                💪
+            </div>
+            <h2 style="font-family: 'Orbitron', sans-serif; font-size: 24px; font-weight: 900; color: #f97316; margin-bottom: 12px;">
+                Connecting to Server...
+            </h2>
+            <p style="color: #64748b; margin-bottom: 24px;">
+                The backend is waking up from sleep mode. This usually takes 30-60 seconds.
+            </p>
+            <div style="width: 100%; height: 4px; background: #111118; border-radius: 999px; overflow: hidden; margin-bottom: 12px;">
+                <div style="height: 100%; background: linear-gradient(90deg, #f97316, #facc15, #f97316); background-size: 200% 100%; animation: loading 1.5s ease-in-out infinite; border-radius: 999px;"></div>
+            </div>
+            <p id="wakeup-status" style="color: #64748b; font-size: 14px; animation: fadeInOut 2s ease-in-out infinite;">
+                Please wait...
+            </p>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Add animations
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 8px 32px rgba(249,115,22,0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 12px 48px rgba(249,115,22,0.5); }
+        }
+        @keyframes loading {
+            0% { width: 0%; background-position: 0% 50%; }
+            50% { width: 70%; background-position: 100% 50%; }
+            100% { width: 100%; background-position: 0% 50%; }
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+    `;
+    document.head.appendChild(style);
+
+    // Update status messages
+    const messages = [
+        'Connecting to database...',
+        'Waking up backend server...',
+        'Loading your workspace...',
+        'Almost ready...'
+    ];
+    let msgIdx = 0;
+    const statusEl = document.getElementById('wakeup-status');
+    const msgInterval = setInterval(() => {
+        msgIdx = (msgIdx + 1) % messages.length;
+        if (statusEl) statusEl.textContent = messages[msgIdx];
+    }, 2000);
+
+    // Retry connection
+    let attempts = 0;
+    const maxAttempts = 60;
+    const retryInterval = setInterval(async () => {
+        try {
+            const r = await fetch('/health');
+            const data = await r.json();
+            if (data.ok && data.db_initialized) {
+                clearInterval(msgInterval);
+                clearInterval(retryInterval);
+                overlay.remove();
+                backendWakeupShown = false;
+                // Reload the page to get fresh data
+                window.location.reload();
+            }
+        } catch (e) {
+            // Still waiting
+        }
+
+        attempts++;
+        if (attempts >= maxAttempts) {
+            clearInterval(msgInterval);
+            clearInterval(retryInterval);
+            if (statusEl) {
+                statusEl.textContent = 'Taking longer than expected. Refreshing page...';
+                statusEl.style.color = '#f97316';
+            }
+            setTimeout(() => window.location.reload(), 2000);
+        }
+    }, 1000);
 }
 
 async function saveProfile(event) {
@@ -431,12 +550,16 @@ async function loadStats(force = false) {
     }
     try {
         const r = await apiFetch(`${API_BASE}/api/stats`);
-        if (!r.ok) return;
+        if (!r.ok) {
+            console.error("Stats load failed:", r.status);
+            return;
+        }
         const data = await r.json();
         Cache.set("stats", data);
         applyStats(data);
     } catch (e) {
         console.error("Stats error:", e);
+        // Don't show toast on initial load failure - wakeup UI will handle it
     }
 }
 
@@ -933,7 +1056,8 @@ async function deleteClient(id, permanent = false) {
 
             // Optimized: Remove from local state immediately for instant UI update
             state.clients = state.clients.filter(c => c.id !== id);
-            renderClients();
+            const listEl = document.getElementById("clients-list");
+            if (listEl) listEl.innerHTML = renderClients(state.clients);
 
             // Invalidate cache and refresh in background
             Cache.invalidate("stats", "insights", "clients");
@@ -958,9 +1082,10 @@ async function deleteClient(id, permanent = false) {
             }
             showToast(`Client "${clientName}" permanently deleted`, "success");
 
-            // Optimized: Remove from local state immediately
+            // Optimized: Remove from local state immediately for instant UI update
             state.clients = state.clients.filter(c => c.id !== id);
-            renderClients();
+            const listEl = document.getElementById("clients-list");
+            if (listEl) listEl.innerHTML = renderClients(state.clients);
 
             Cache.invalidate("stats", "insights", "clients");
             loadStats(true);
@@ -989,7 +1114,8 @@ async function deleteClient(id, permanent = false) {
         const clientIndex = state.clients.findIndex(c => c.id === id);
         if (clientIndex !== -1) {
             state.clients[clientIndex].status = "lost";
-            renderClients();
+            const listEl = document.getElementById("clients-list");
+            if (listEl) listEl.innerHTML = renderClients(state.clients);
         }
 
         Cache.invalidate("stats", "insights", "clients");
@@ -1102,7 +1228,8 @@ async function deletePayment(id, permanent = false) {
 
         // Optimized: Remove from local state immediately for instant UI update
         state.payments = state.payments.filter(p => p.id !== id);
-        renderPayments();
+        const listEl = document.getElementById("payments-list");
+        if (listEl) listEl.innerHTML = renderPayments(state.payments);
 
         // Invalidate cache and refresh stats in background
         Cache.invalidate("stats", "insights", "payments");
@@ -1483,18 +1610,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    await Promise.all([
-        loadStats(true),
-        loadInsights(true),
-        loadClients(true),
-        loadPayments(true),
-        loadNotifications(),
-        loadEmailLogs(1),
-        loadExpiringClients(true),
-        IS_ADMIN ? loadAdminTrainers() : Promise.resolve(),
-        IS_ADMIN ? loadImpersonateDropdown() : Promise.resolve(),
-        checkImpersonationStatus(),
-    ]);
+    // Show initial loading state
+    const statsGrid = document.getElementById("stats-grid");
+    if (statsGrid) {
+        statsGrid.style.opacity = "0.5";
+    }
+
+    try {
+        await Promise.all([
+            loadStats(true),
+            loadInsights(true),
+            loadClients(true),
+            loadPayments(true),
+            loadNotifications(),
+            loadEmailLogs(1),
+            loadExpiringClients(true),
+            IS_ADMIN ? loadAdminTrainers() : Promise.resolve(),
+            IS_ADMIN ? loadImpersonateDropdown() : Promise.resolve(),
+            checkImpersonationStatus(),
+        ]);
+
+        // Data loaded successfully - restore opacity
+        if (statsGrid) {
+            statsGrid.style.opacity = "1";
+        }
+    } catch (error) {
+        console.error("Initial data load failed:", error);
+        // If initial load fails, backend might be waking up
+        // The wakeup UI is already shown by apiFetch
+    }
 
     // Auto-refresh notifications every 30 seconds
     setInterval(() => {
