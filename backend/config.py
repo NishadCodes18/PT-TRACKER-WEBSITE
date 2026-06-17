@@ -28,8 +28,8 @@ def _database_uri():
         if uri.startswith('postgres://'):
             uri = uri.replace('postgres://', 'postgresql://', 1)
 
-        # For Vercel with PostgreSQL, ensure proper connection parameters
-        if _env_bool('VERCEL') and 'postgresql://' in uri:
+        # For PostgreSQL databases (Render, Aiven, etc.)
+        if 'postgresql://' in uri or 'postgres://' in uri:
             # Convert internal hostname to external for Vercel
             # Render internal: dpg-xxx-a -> External: dpg-xxx-a.oregon-postgres.render.com
             if 'render' in uri.lower() and '.render.com' not in uri:
@@ -49,6 +49,7 @@ def _database_uri():
                         uri = uri.replace(f"@{hostname}:", f"@{external_host}:")
 
             # Add sslmode if not present for PostgreSQL connections
+            # Aiven and most cloud providers require SSL
             if '?' not in uri:
                 uri += '?sslmode=require'
             elif 'sslmode=' not in uri:
@@ -78,17 +79,22 @@ class Config:
                 'max_overflow': 0,
             }
         else:
+            # Optimized for serverless (Vercel) with cloud databases (Aiven, Render, etc.)
             SQLALCHEMY_ENGINE_OPTIONS = {
                 'pool_pre_ping': True,
                 'pool_recycle': 280,
                 'pool_size': 1,
                 'max_overflow': 2,
-                'pool_timeout': 5,
+                'pool_timeout': 10,
                 'echo_pool': False,
                 'connect_args': {
-                    'connect_timeout': 5,
+                    'connect_timeout': 10,
                     'sslmode': 'require',
-                    'application_name': 'pt_tracker_vercel'
+                    'application_name': 'pt_tracker_vercel',
+                    'keepalives': 1,
+                    'keepalives_idle': 30,
+                    'keepalives_interval': 10,
+                    'keepalives_count': 5
                 }
             }
     else:

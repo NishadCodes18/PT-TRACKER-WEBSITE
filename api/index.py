@@ -30,7 +30,8 @@ try:
     app = create_app()
     logger.info("Flask app created successfully")
 except Exception as e:
-    logger.error(f"Failed to create Flask app: {e}", exc_info=True)
+    error_message = str(e)
+    logger.error(f"Failed to create Flask app: {error_message}", exc_info=True)
     from flask import Flask, jsonify
     app = Flask(__name__)
 
@@ -39,7 +40,7 @@ except Exception as e:
     def error_handler(path=''):
         return jsonify({
             "error": "Application failed to initialize",
-            "message": str(e),
+            "message": error_message,
             "hint": "Check DATABASE_URL is set correctly and email provider is configured"
         }), 500
 
